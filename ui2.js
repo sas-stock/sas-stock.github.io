@@ -156,7 +156,7 @@ V.reglages = function () {
   const plus = (a, l) => '<button class="btn mini" data-a="' + a + '">' + ic('ajout') + l + '</button>';
   return '<div class="titre"><h1>Réglages</h1></div>' +
     '<button class="ligne carte" data-a="formBoutique"><div class="f"><b>' + esc(sh.nom) + '</b><span>' + esc([sh.tel, sh.adresse, sh.rccm ? 'RCCM ' + sh.rccm : ''].filter(Boolean).join(', ') || 'Ajoutez téléphone, adresse et RCCM pour vos reçus') + '</span></div><span class="etiq">Modifier</span></button>' +
-    '<div class="deux">' + sect('Personnel', plus('formUser', 'Personne'), '<div class="liste">' + C.db.users.map(u => '<button class="ligne" data-a="formUser" data-id="' + u.id + '"><div class="f"><b>' + esc(u.nom) + '</b><span>' + (u.role === 'gerant' ? 'Gérant : voit tout' : 'Caisse : ne voit ni prix d’achat ni bénéfices') + '</span></div>' + (u.actif === false ? '<span class="etiq ko">Bloqué</span>' : '') + '</button>').join('') + '</div>') +
+    '<div class="deux">' + sect('Employés', plus('formUser', 'Ajouter un employé'), '<div class="liste">' + C.db.users.map(u => '<button class="ligne" data-a="formUser" data-id="' + u.id + '"><div class="f"><b>' + esc(u.nom) + '</b><span>' + (u.role === 'gerant' ? 'Gérant : voit tout' : 'Caisse : ne voit ni prix d’achat ni bénéfices') + '</span></div>' + (u.actif === false ? '<span class="etiq ko">Bloqué</span>' : '') + '</button>').join('') + '</div>') +
     sect('Dépôts', plus('formDepot', 'Dépôt'), '<div class="liste">' + C.db.depots.map((d, i) => '<button class="ligne" data-a="formDepot" data-id="' + d.id + '"><div class="f"><b>' + esc(d.nom) + '</b><span>' + (i === 0 ? 'Point de vente : la caisse sort les articles d’ici' : 'Réserve') + '</span></div><div class="d"><b class="n">' + M(C.valeurStock(d.id).achat) + '</b></div></button>').join('') + '</div>') +
     sect('Familles d’articles', plus('formFamille', 'Famille'), C.db.familles.length ? '<div class="liste">' + C.db.familles.map(x => '<button class="ligne" data-a="formFamille" data-id="' + x.id + '"><div class="f"><b>' + esc(x.nom) + '</b><span>' + C.db.articles.filter(a => a.familleId === x.id && a.actif !== false).length + ' article(s)</span></div></button>').join('') + '</div>' : '<div class="carte">' + vide('Aucune famille', 'Classez vos articles : matelas, tapis, lits…') + '</div>') +
     sect('Règles de vente', '', '<div class="carte"><label class="coche"><input type="checkbox" data-ch="optVSS"' + (m.opt.venteSansStock ? ' checked' : '') + '><span>Autoriser la vente d’un article même si le stock est insuffisant</span></label>' +
@@ -167,7 +167,7 @@ V.reglages = function () {
 };
 V.plus = function () {
   const L = [['tiers', 'gens', 'Clients' + (admin() ? ' et fournisseurs' : ''), 'Crédits, règlements, historique'], ['rapports', 'graph', admin() ? 'Rapports' : 'Ma caisse', admin() ? 'Point de caisse, bénéfice, articles vendus' : 'Mon point de caisse']];
-  if (admin()) L.push(['reglages', 'reglage', 'Réglages', 'Boutique, personnel, dépôts, copie de sécurité']);
+  if (admin()) L.push(['reglages', 'reglage', 'Réglages', 'Boutique, employés, dépôts, copie de sécurité']);
   return '<div class="titre"><h1>Plus</h1></div><div class="liste">' + L.map(x => '<button class="ligne" data-a="aller" data-v="' + x[0] + '">' + ic(x[1]).replace('<svg', '<svg width="24" height="24"') + '<div class="f"><b>' + x[2] + '</b><span>' + x[3] + '</span></div></button>').join('') +
     '<button class="ligne" data-a="licence">' + ic('cle').replace('<svg', '<svg width="24" height="24"') + '<div class="f"><b>Licence</b><span>' + esc(texteLicence()) + '</span></div></button>' +
     '<button class="ligne" data-a="deconnexion">' + ic('sortie').replace('<svg', '<svg width="24" height="24"') + '<div class="f"><b>Changer d’utilisateur</b><span>Connecté : ' + esc(S.user.nom) + '</span></div></button></div>' +
@@ -179,9 +179,9 @@ function modaleLicence() {
 }
 function formUser(id) {
   const u = id ? C.user(id) : { role: 'caissier' };
-  const ch = [{ n: 'nom', l: 'Nom', v: u.nom, req: 1 }, { n: 'role', l: 'Rôle', t: 'select', v: u.role, opts: [['caissier', 'Caisse'], ['gerant', 'Gérant']] }, { n: 'pin', l: id ? 'Nouveau code secret (vide = garder l’actuel)' : 'Code secret (4 à 6 chiffres)', t: 'pin', req: !id }];
+  const ch = [{ n: 'nom', l: 'Nom', v: u.nom, req: 1 }, { n: 'role', l: 'Rôle', t: 'select', v: u.role, opts: [['caissier', 'Caissier ou vendeur'], ['gerant', 'Gérant (voit tout)']] }, { n: 'pin', l: id ? 'Nouveau code secret (vide = garder l’actuel)' : 'Code secret (4 à 6 chiffres)', t: 'pin', req: !id }];
   if (id) ch.push({ n: 'bloque', l: 'Bloquer l’accès de cette personne', t: 'coche', v: u.actif === false });
-  formulaire(id ? 'Modifier ' + u.nom : 'Nouvelle personne', ch, v => {
+  formulaire(id ? 'Modifier ' + u.nom : 'Nouvel employé', ch, v => {
     const nom = v.nom.trim(), bloque = v.bloque === 'on'; if (!nom) throw new Error('Indiquez le nom.');
     if (v.pin && !/^\d{4,6}$/.test(v.pin)) throw new Error('Le code secret doit avoir 4 à 6 chiffres.');
     if (!id && !v.pin) throw new Error('Choisissez un code secret.');
@@ -191,6 +191,7 @@ function formUser(id) {
     if (v.pin) { cible.pin = hachPin(cible.id, v.pin); cible.pinLen = v.pin.length; }
     if (!id) C.db.users.push(cible);
     if (S.user.id === cible.id) S.user = cible;
+    toast(id ? 'Employé modifié' : 'Employé ajouté');
   });
 }
 function formNom(titre, liste, id, label) {
