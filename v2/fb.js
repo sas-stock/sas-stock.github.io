@@ -1,7 +1,7 @@
 /* SAS STOCK 2 — liaison Firebase (connexion Google + base Firestore) */
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { getFirestore, doc, setDoc, collection, query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, Timestamp, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, collection, query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, Timestamp, getDocs } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
 const app = initializeApp({ apiKey: 'AIzaSyAiVF0_XRM8cxyMsV9S79b2sMl9KLVncWQ', authDomain: 'sas-stock-2d195.firebaseapp.com', projectId: 'sas-stock-2d195', storageBucket: 'sas-stock-2d195.firebasestorage.app', messagingSenderId: '98701020652', appId: '1:98701020652:web:f0779e040cc725d997c4c9' });
 const auth = getAuth(app), db = getFirestore(app);
 const U = u => u ? { uid: u.uid, email: u.email || '', nom: u.displayName || '' } : null;
