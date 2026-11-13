@@ -1,6 +1,7 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '1.0.0', REVENDEUR = { nom: 'SAS TECH', tel: '' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '1.0.1', REVENDEUR = { nom: 'SAS TECH', tel: '' };
+const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
 const S = { user: null, vue: 'accueil', per: { k: 'jour' }, panier: panierVide(), ach: null, f: {}, pinU: null, pin: '' };
@@ -63,6 +64,7 @@ function sauver(tout) { clearTimeout(tSauve); if (tout) return Store.set('db', C
 
 /* ---------- licence ---------- */
 function verifierLicence() {
+  if (lic.maitre === MAITRE) { etat = { ok: true, aVie: true, reste: Infinity, type: 1, maitre: true }; return; }
   const now = Date.now();
   if (lic.vu && now < lic.vu - 2 * 864e5) { etat = { ok: false, raison: 'horloge' }; return; }
   etat = lic.cle ? LIC.check(lic.cle, PUB, lic.appareil, now) : { ok: false, raison: 'aucune' };
@@ -74,6 +76,7 @@ function texteLicence() {
   return (etat.type === 0 ? 'Licence d’essai' : 'Licence') + ' valable jusqu’au ' + dj(etat.expDate.getTime()) + ' (' + etat.reste + ' jour' + (etat.reste > 1 ? 's' : '') + ')';
 }
 function activer(cle) {
+  if (LIC.hashTxt('sas-maitre:' + String(cle).replace(/\s+/g, '').toUpperCase()) === MAITRE) { lic.maitre = MAITRE; Store.set('lic', lic); verifierLicence(); return; }
   const r = LIC.check(cle, PUB, lic.appareil);
   if (!r.ok) {
     throw new Error({ format: 'Clé non reconnue. Vérifiez que vous l’avez copiée en entier.', signature: 'Clé non valide.',
