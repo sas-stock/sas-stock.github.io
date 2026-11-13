@@ -155,7 +155,7 @@ V.reglages = function () {
   const sect = (t, bouton, corps) => '<div class="bloc"><div class="rangee" style="justify-content:space-between;margin:18px 2px 8px"><h2>' + t + '</h2>' + (bouton || '') + '</div>' + corps + '</div>';
   const plus = (a, l) => '<button class="btn mini" data-a="' + a + '">' + ic('ajout') + l + '</button>';
   return '<div class="titre"><h1>Réglages</h1></div>' +
-    '<button class="ligne carte" data-a="formBoutique"><div class="f"><b>' + esc(sh.nom) + '</b><span>' + esc([sh.tel, sh.adresse].filter(Boolean).join(', ') || 'Ajoutez téléphone et adresse pour vos reçus') + '</span></div><span class="etiq">Modifier</span></button>' +
+    '<button class="ligne carte" data-a="formBoutique"><div class="f"><b>' + esc(sh.nom) + '</b><span>' + esc([sh.tel, sh.adresse, sh.rccm ? 'RCCM ' + sh.rccm : ''].filter(Boolean).join(', ') || 'Ajoutez téléphone, adresse et RCCM pour vos reçus') + '</span></div><span class="etiq">Modifier</span></button>' +
     '<div class="deux">' + sect('Personnel', plus('formUser', 'Personne'), '<div class="liste">' + C.db.users.map(u => '<button class="ligne" data-a="formUser" data-id="' + u.id + '"><div class="f"><b>' + esc(u.nom) + '</b><span>' + (u.role === 'gerant' ? 'Gérant : voit tout' : 'Caisse : ne voit ni prix d’achat ni bénéfices') + '</span></div>' + (u.actif === false ? '<span class="etiq ko">Bloqué</span>' : '') + '</button>').join('') + '</div>') +
     sect('Dépôts', plus('formDepot', 'Dépôt'), '<div class="liste">' + C.db.depots.map((d, i) => '<button class="ligne" data-a="formDepot" data-id="' + d.id + '"><div class="f"><b>' + esc(d.nom) + '</b><span>' + (i === 0 ? 'Point de vente : la caisse sort les articles d’ici' : 'Réserve') + '</span></div><div class="d"><b class="n">' + M(C.valeurStock(d.id).achat) + '</b></div></button>').join('') + '</div>') +
     sect('Familles d’articles', plus('formFamille', 'Famille'), C.db.familles.length ? '<div class="liste">' + C.db.familles.map(x => '<button class="ligne" data-a="formFamille" data-id="' + x.id + '"><div class="f"><b>' + esc(x.nom) + '</b><span>' + C.db.articles.filter(a => a.familleId === x.id && a.actif !== false).length + ' article(s)</span></div></button>').join('') + '</div>' : '<div class="carte">' + vide('Aucune famille', 'Classez vos articles : matelas, tapis, lits…') + '</div>') +
@@ -262,8 +262,8 @@ const A = {
   formDepense: () => formulaire('Nouvelle dépense', [{ n: 'libelle', l: 'Motif', req: 1 }, { n: 'categorie', l: 'Catégorie', t: 'select', opts: CATS.map(x => [x, x]), v: 'Divers' }, { n: 'montant', l: 'Montant', t: 'nombre', req: 1 }],
     v => { C.depenser({ libelle: v.libelle.trim(), categorie: v.categorie, montant: num(v.montant), userId: S.user.id }); toast('Dépense enregistrée'); }),
   supprDepense: d => confirmer('Supprimer la dépense', 'Cette dépense sera retirée de la caisse et des rapports.', 'Supprimer', () => { C.db.depenses = C.db.depenses.filter(x => x.id !== d.id); sauver(); rendre(); }, true),
-  formBoutique: () => { const sh = C.db.meta.shop; formulaire('Ma boutique', [{ n: 'nom', l: 'Nom de la boutique', v: sh.nom, req: 1 }, { n: 'tel', l: 'Téléphone', t: 'tel', v: sh.tel }, { n: 'adresse', l: 'Adresse', v: sh.adresse }, { n: 'pied', l: 'Message en bas des reçus', v: sh.pied }],
-    v => { if (!v.nom.trim()) throw new Error('Indiquez le nom de la boutique.'); Object.assign(sh, { nom: v.nom.trim(), tel: v.tel.trim(), adresse: v.adresse.trim(), pied: v.pied.trim() }); }); },
+  formBoutique: () => { const sh = C.db.meta.shop; formulaire('Ma boutique', [{ n: 'nom', l: 'Nom de la boutique', v: sh.nom, req: 1 }, { n: 'activite', l: 'Activité (ex. : vente de matelas et tapis)', v: sh.activite }, { n: 'tel', l: 'Téléphone', t: 'tel', v: sh.tel }, { n: 'tel2', l: 'Deuxième téléphone ou WhatsApp', t: 'tel', v: sh.tel2 }, { n: 'email', l: 'E-mail', v: sh.email }, { n: 'adresse', l: 'Adresse (quartier, rue, repère)', v: sh.adresse }, { n: 'ville', l: 'Ville', v: sh.ville }, { n: 'rccm', l: 'N° RCCM', v: sh.rccm }, { n: 'ncc', l: 'N° de compte contribuable (NCC)', v: sh.ncc }, { n: 'pied', l: 'Message en bas des reçus', v: sh.pied }],
+    v => { if (!v.nom.trim()) throw new Error('Indiquez le nom de la boutique.'); ['nom', 'activite', 'tel', 'tel2', 'email', 'adresse', 'ville', 'rccm', 'ncc', 'pied'].forEach(k => { sh[k] = (v[k] || '').trim(); }); }); },
   formUser: d => formUser(d.id), formDepot: d => formNom(d.id ? 'Renommer le dépôt' : 'Nouveau dépôt', C.db.depots, d.id, 'Nom du dépôt'), formFamille: d => formNom(d.id ? 'Renommer la famille' : 'Nouvelle famille', C.db.familles, d.id, 'Nom de la famille')
 };
 const ligneDe = el => +el.closest('.pl').dataset.i;
@@ -297,7 +297,7 @@ const FORMS = {
     if (v.pin !== v.pin2) return toast('Les deux codes secrets sont différents.', true);
     if (!v.boutique.trim() || !v.nom.trim()) return toast('Remplissez le nom de la boutique et celui du gérant.', true);
     const db = C.db = C.vide(), u = { id: C.uid(), nom: v.nom.trim(), role: 'gerant', actif: true, pinLen: v.pin.length };
-    u.pin = hachPin(u.id, v.pin); db.users.push(u); db.meta.shop.nom = v.boutique.trim(); db.meta.shop.tel = v.tel.trim();
+    u.pin = hachPin(u.id, v.pin); db.users.push(u); db.meta.shop.nom = v.boutique.trim(); db.meta.shop.tel = v.tel.trim(); db.meta.shop.adresse = (v.adresse || '').trim(); db.meta.shop.rccm = (v.rccm || '').trim();
     db.depots.push({ id: C.uid(), nom: 'Magasin' }); sauver(true); entrer(u); rendre();
   }
 };

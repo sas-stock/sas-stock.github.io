@@ -1,6 +1,6 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '1.0.1', REVENDEUR = { nom: 'SAS TECH', tel: '' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '1.0.2', REVENDEUR = { nom: 'SAS TECH', tel: '' };
 const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
@@ -156,7 +156,7 @@ function vueActivation() {
 }
 function vuePremiere() {
   return porte('<p class="ex">Licence activée. Créez maintenant votre boutique et le compte du gérant.</p><div class="carte"><form data-form="premiere">' +
-    [{ n: 'boutique', l: 'Nom de la boutique', req: 1 }, { n: 'tel', l: 'Téléphone de la boutique', t: 'tel' }, { n: 'nom', l: 'Nom du gérant', req: 1 },
+    [{ n: 'boutique', l: 'Nom de la boutique', req: 1 }, { n: 'tel', l: 'Téléphone de la boutique', t: 'tel' }, { n: 'adresse', l: 'Adresse (quartier, ville)' }, { n: 'rccm', l: 'N° RCCM (facultatif)' }, { n: 'nom', l: 'Nom du gérant', req: 1 },
      { n: 'pin', l: 'Code secret du gérant (4 à 6 chiffres)', t: 'pin', req: 1 }, { n: 'pin2', l: 'Répétez le code secret', t: 'pin', req: 1 }].map(champ).join('') +
     '<button class="btn p large">Créer ma boutique</button></form></div>');
 }
@@ -257,11 +257,13 @@ function majRes() {
 }
 function texteTicket(v) {
   const sh = C.db.meta.shop, c = v.clientId && C.tiers(v.clientId);
-  return [sh.nom, sh.tel, 'Reçu ' + v.num + ' du ' + dh(v.date), c ? 'Client : ' + c.nom : ''].filter(Boolean).join('\n') + '\n\n' +
+  return [sh.nom, lignesBoutique().join('\n'), 'Reçu ' + v.num + ' du ' + dh(v.date), c ? 'Client : ' + c.nom : ''].filter(Boolean).join('\n') + '\n\n' +
     v.lignes.map(l => l.nom + '\n  ' + F(l.qte) + ' x ' + F(l.pu) + ' = ' + M(l.qte * l.pu)).join('\n') + '\n\nTotal : ' + M(v.total) + '\nPayé : ' + M(v.paye) +
     (v.total > v.paye ? '\nReste à payer : ' + M(v.total - v.paye) : '') + '\n\n' + (sh.pied || '');
 }
-function enTeteTicket() { const sh = C.db.meta.shop; return '<h3>' + esc(sh.nom) + '</h3>' + (sh.adresse ? '<p class="ce">' + esc(sh.adresse) + '</p>' : '') + (sh.tel ? '<p class="ce">Tél. ' + esc(sh.tel) + '</p>' : ''); }
+function lignesBoutique() { const sh = C.db.meta.shop, L = []; if (sh.activite) L.push(sh.activite); const ad = [sh.adresse, sh.ville].filter(Boolean).join(', '); if (ad) L.push(ad); const t = [sh.tel, sh.tel2].filter(Boolean).join(' / '); if (t) L.push('Tél. ' + t); if (sh.email) L.push(sh.email); if (sh.rccm) L.push('RCCM : ' + sh.rccm); if (sh.ncc) L.push('NCC : ' + sh.ncc); return L; }
+function enTeteTicket() { return '<h3>' + esc(C.db.meta.shop.nom) + '</h3>' + lignesBoutique().map(x => '<p class="ce">' + esc(x) + '</p>').join(''); }
+function enTeteTicketV1() { const sh = C.db.meta.shop; return '<h3>' + esc(sh.nom) + '</h3>' + (sh.adresse ? '<p class="ce">' + esc(sh.adresse) + '</p>' : '') + (sh.tel ? '<p class="ce">Tél. ' + esc(sh.tel) + '</p>' : ''); }
 function boutonsTicket(texte) {
   return '<div class="rangee nonimp" style="margin-top:16px"><button class="btn f" data-a="imprimer">' + ic('imprime') + 'Imprimer</button>' +
     '<a class="btn f" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(texte) + '">' + ic('envoi') + 'WhatsApp</a></div>';
