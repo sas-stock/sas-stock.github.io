@@ -1,6 +1,6 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.0.2', REVENDEUR = { nom: 'SAS TECH', tel: '' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.0.3', REVENDEUR = { nom: 'SAS TECH', tel: '' };
 const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
@@ -178,7 +178,7 @@ function coque(contenu) {
     ['tiers', 'Clients', 'gens', 'sec'], ['rapports', 'Rapports', 'graph', 'sec'], ['reglages', 'Réglages', 'reglage', 'sec'], ['plus', 'Plus', 'plus', 'plus']]
     .filter(x => admin() || x[0] !== 'reglages');
   const v = S.vue === 'achat' ? 'journal' : S.vue, dansPlus = ['tiers', 'rapports', 'reglages', 'plus'].indexOf(v) >= 0;
-  return '<header class="tete">' + LOGO + '<div class="nomb"><b>' + esc(C.db.meta.shop.nom || 'SAS STOCK') + '</b><span id="etatSync">' + etatSyncTexte() + '</span></div><button class="moi" data-a="deconnexion">' + esc(S.user.nom) + '</button></header>' +
+  return '<header class="tete">' + LOGO + '<div class="nomb"><b>' + esc(C.db.meta.shop.nom || 'SAS STOCK') + '</b><span id="etatSync">' + etatSyncTexte() + '</span></div>' + pastille() + '<button class="moi" data-a="deconnexion">' + esc(S.user.nom) + '</button></header>' +
     (!etat.aVie && etat.reste <= 7 ? '<div class="bandeau"><span>Votre licence se termine dans <b>' + etat.reste + ' jour' + (etat.reste > 1 ? 's' : '') + '</b>.</span><button data-a="licence">Prolonger</button></div>' : '') +
     '<main>' + contenu + '</main><nav class="nav">' + it.map(x => '<button class="' + (x[3] || '') + (v === x[0] || (x[0] === 'plus' && dansPlus) ? ' on' : '') + '" data-a="aller" data-v="' + x[0] + '"><i>' + ic(x[2]) + '</i>' + x[1] + '</button>').join('') + '</nav>';
 }

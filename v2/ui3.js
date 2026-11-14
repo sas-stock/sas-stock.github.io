@@ -31,7 +31,8 @@ function appliquer(docs) {
 }
 const TXT = { ok: 'Synchronisé', envoi: 'Envoi en cours…', horsligne: 'Hors ligne, envoi au retour du réseau', erreur: 'Synchronisation en pause', attente: 'SAS STOCK' };
 function etatSyncTexte() { return TXT[syncEtat]; }
-function majSync(e) { syncEtat = e; const el = $('#etatSync'); if (el) el.textContent = TXT[e]; }
+function pastille() { const h = navigator.onLine === false || syncEtat === 'horsligne', k = syncEtat === 'erreur'; return '<span id="reseau" class="reseau' + (h ? ' off' : k ? ' ko' : '') + '">' + (h ? 'Hors ligne' : k ? 'En pause' : 'En ligne') + '</span>'; }
+function majSync(e) { syncEtat = e; const el = $('#etatSync'); if (el) el.textContent = TXT[e]; const r = $('#reseau'); if (r) r.outerHTML = pastille(); }
 async function pousser() {
   if (!compte || !etat.ok || !window.FB) return;
   if (enPousse) { encore = true; return; }
@@ -127,7 +128,8 @@ A.licence = () => modaleLicence();
 A.google = () => FB.connecter().catch(e => toast(/popup/.test(e && e.code || '') ? 'Fenêtre Google fermée ou bloquée. Réessayez.' : 'Connexion impossible. Vérifiez votre Internet.', true));
 A.synchro = () => { fermer(); if (!arret) demarrerSync(); pousser(); toast('Synchronisation lancée'); };
 A.quitterCompte = () => confirmer('Changer de compte Google', 'Cet appareil sera déconnecté de la boutique. Les données restent en ligne et reviennent à la prochaine connexion.', 'Se déconnecter', () => { if (window.FB) FB.deconnecter(); else ouvrirCompte(null); }, true);
-addEventListener('online', () => { if (!arret) demarrerSync(); pousser(); });
+addEventListener('online', () => { majSync(syncEtat); if (!arret) demarrerSync(); pousser(); });
+addEventListener('offline', () => majSync(syncEtat));
 async function demarrer() {
   await Store.open();
   lic = (await Store.get('lic')) || {};
