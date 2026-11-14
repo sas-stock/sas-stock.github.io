@@ -11,7 +11,7 @@ window.FB = {
   connecter: () => signInWithPopup(auth, new GoogleAuthProvider()),
   deconnecter: () => signOut(auth),
   profil: u => setDoc(doc(db, 'boutiques', u.uid), { email: u.email, nom: u.nom, vu: serverTimestamp() }, { merge: true }),
-  ecouterLicence: (uid, cb, err) => onSnapshot(doc(db, 'licences', uid), s => cb(s.exists() && s.data().fin ? ms(s.data().fin) : null), err),
+  ecouterLicence: (uid, cb, err) => onSnapshot(doc(db, 'licences', uid), { includeMetadataChanges: true }, s => { if (s.metadata.hasPendingWrites || s.metadata.fromCache) return; cb(s.exists() && s.data().fin ? ms(s.data().fin) : null); }, err),
   ecouterDocs: (uid, depuis, cb, err) => onSnapshot(query(collection(db, 'boutiques', uid, 'docs'), where('m', '>', Timestamp.fromMillis(depuis)), orderBy('m')), s => {
     const out = [];
     s.docChanges().forEach(c => { if (c.type === 'removed' || c.doc.metadata.hasPendingWrites) return; const d = c.doc.data(); out.push({ k: c.doc.id, j: d.x ? null : d.j, m: ms(d.m) }); });
