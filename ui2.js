@@ -163,13 +163,13 @@ V.reglages = function () {
       '<label class="coche" style="margin:0"><input type="checkbox" data-ch="optPL"' + (m.opt.prixLibre ? ' checked' : '') + '><span>Autoriser la caisse à modifier le prix de vente</span></label></div>') + '</div>' +
     sect('Copie de sécurité', '', '<div class="carte"><p class="petit doux" style="margin-bottom:10px">Vos données restent sur cet appareil. Enregistrez une copie chaque semaine et gardez-la ailleurs (WhatsApp, e-mail, clé USB). ' + (m.sauvegarde ? 'Dernière copie le ' + dj(m.sauvegarde) + '.' : 'Aucune copie pour l’instant.') + '</p>' +
       '<div class="rangee"><button class="btn p f" data-a="exporter">Enregistrer une copie</button><label class="btn f" style="cursor:pointer">Restaurer une copie<input type="file" accept=".json,application/json" data-ch="fichier" hidden></label></div></div>') +
-    sect('Licence', '', '<button class="ligne carte" data-a="licence"><div class="f"><b>' + esc(texteLicence()) + '</b><span>Appareil ' + esc(lic.appareil) + ', version ' + VERSION + '</span></div><span class="etiq">Voir</span></button>');
+    sect('Licence', '', '<button class="ligne carte" data-a="licence"><div class="f"><b>' + esc(texteLicence()) + '</b><span>' + esc(compte ? compte.email : '') + ', version ' + VERSION + '</span></div><span class="etiq">Voir</span></button>');
 };
 V.plus = function () {
   const L = [['tiers', 'gens', 'Clients' + (admin() ? ' et fournisseurs' : ''), 'Crédits, règlements, historique'], ['rapports', 'graph', admin() ? 'Rapports' : 'Ma caisse', admin() ? 'Point de caisse, bénéfice, articles vendus' : 'Mon point de caisse']];
   if (admin()) L.push(['reglages', 'reglage', 'Réglages', 'Boutique, employés, dépôts, copie de sécurité']);
   return '<div class="titre"><h1>Plus</h1></div><div class="liste">' + L.map(x => '<button class="ligne" data-a="aller" data-v="' + x[0] + '">' + ic(x[1]).replace('<svg', '<svg width="24" height="24"') + '<div class="f"><b>' + x[2] + '</b><span>' + x[3] + '</span></div></button>').join('') +
-    '<button class="ligne" data-a="licence">' + ic('cle').replace('<svg', '<svg width="24" height="24"') + '<div class="f"><b>Licence</b><span>' + esc(texteLicence()) + '</span></div></button>' +
+    '<button class="ligne" data-a="licence">' + ic('cle').replace('<svg', '<svg width="24" height="24"') + '<div class="f"><b>Compte et licence</b><span>' + esc(texteLicence()) + '</span></div></button>' +
     '<button class="ligne" data-a="deconnexion">' + ic('sortie').replace('<svg', '<svg width="24" height="24"') + '<div class="f"><b>Changer d’utilisateur</b><span>Connecté : ' + esc(S.user.nom) + '</span></div></button></div>' +
     '<p class="petit doux centre" style="margin-top:16px">SAS STOCK ' + VERSION + ', par ' + esc(REVENDEUR.nom) + '</p>';
 };
@@ -332,4 +332,3 @@ async function demarrer() {
   setInterval(() => { const avant = etat.ok; verifierLicence(); if (avant !== etat.ok) rendre(); }, 6e5);
   try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}
 }
-demarrer();
