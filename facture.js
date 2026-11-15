@@ -16,7 +16,7 @@ function ticketVente(id, nouveau) {
     (v.lignes.length < 8 ? '<tr class="vide"><td></td><td></td><td></td><td></td><td></td></tr>' : '') + '</tbody></table>' +
     '<table class="f-tot">' + ligneTot('Montant payé', M(v.paye)) + (v.monnaie > 0 ? ligneTot('Monnaie rendue', M(v.monnaie)) : '') + (du > 0 ? ligneTot('Reste à payer', M(du)) : '') + ligneTot('Total', M(v.total), 1) + '</table>';
   ouvrir(nouveau ? 'Vente enregistrée' : 'Vente ' + v.num, cadreFacture({
-    infos: [['Date d’émission', dj(v.date)], ['Émis par', (C.user(v.userId) || {}).nom || ''], ['Mode de paiement', du > 0 ? (v.paye > 0 ? 'Acompte, reste à crédit' : 'À crédit') : 'Comptant']].concat(v.numAvant ? [['N° provisoire', v.numAvant]] : [], v.remplace ? [['Remplace la facture', v.remplace]] : [], v.remplaceePar ? [['Remplacée par', v.remplaceePar]] : []),
+    infos: [['Date d’émission', dj(v.date)], ['Émis par', (C.user(v.userId) || {}).nom || ''], ['Mode de paiement', (du > 0 ? (v.paye > 0 ? 'Acompte, reste à crédit' : 'À crédit') : 'Comptant') + (v.paye > 0 && v.mode ? ' (' + v.mode + ')' : '')]].concat(v.numAvant ? [['N° provisoire', v.numAvant]] : [], v.remplace ? [['Remplace la facture', v.remplace]] : [], v.remplaceePar ? [['Remplacée par', v.remplaceePar]] : []),
     dest: c ? [c.nom, c.tel] : ['Client de passage'], titre: 'Facture n° ' + v.num + (v.annule ? ' (annulée)' : ''), corps }) + boutonsTicket(texteTicket(v)) +
     (nouveau ? '<button class="btn p large nonimp" style="margin-top:8px" data-a="fermer">Vente suivante</button>'
       : admin() && !v.annule ? '<button class="btn p large nonimp" style="margin-top:8px" data-a="corrigerVente" data-id="' + v.id + '">Corriger cette vente</button><button class="btn d large nonimp" style="margin-top:8px" data-a="annulerVente" data-id="' + v.id + '">Annuler cette vente</button>' : ''));
@@ -56,6 +56,6 @@ A.retirerLogo = d => { if (d.tmp) S.logoTmp = null; else { delete C.db.meta.shop
 CH.logo = (v, el) => lireLogo(el, d => { C.db.meta.shop.logo = d; sauver(); majBlocLogo(); toast('Logo enregistré'); });
 CH.logoTmp = (v, el) => lireLogo(el, d => { S.logoTmp = d; majBlocLogo(true); });
 const vuePremiereBase = vuePremiere;
-vuePremiere = () => vuePremiereBase().replace('</form></div>', '</form>' + blocLogo(true) + '</div>');
+vuePremiere = () => vuePremiereBase().replace('<button class="btn p large">Créer ma boutique</button>', blocLogo(true) + '<button class="btn p large" style="margin-top:12px">Créer ma boutique</button>');
 const premiereBase = FORMS.premiere;
 FORMS.premiere = v => { const logo = S.logoTmp; premiereBase(v); if (logo && C.db.users.length) { C.db.meta.shop.logo = logo; S.logoTmp = null; sauver(true); } };

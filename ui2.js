@@ -16,6 +16,7 @@ V.journal = function () {
     (f.jtab === 'achats' ? '<button class="btn mini p" data-a="nouvelAchat">' + ic('ajout') + 'Achat</button>' : f.jtab === 'depenses' ? '<button class="btn mini p" data-a="formDepense">' + ic('ajout') + 'Dépense</button>' : '') + '</div></div>' +
     puces('jtab', [['ventes', 'Ventes']].concat(admin() ? [['achats', 'Achats']] : [], [['depenses', 'Dépenses'], ['reglements', 'Règlements']])) + barrePer();
   const resume = (n, mot, tot) => '<p class="petit doux" style="margin:0 2px 6px">' + n + ' ' + mot + (n > 1 ? 's' : '') + ', total <b class="n">' + M(tot) + '</b></p>';
+  if (f.jtab === 'ventes' && window.listeVentesJ) return h + rechVentes() + '<div id="jl">' + listeVentesJ() + '</div>';
   if (f.jtab === 'ventes') {
     const L = C.db.ventes.filter(dans).reverse(), ok = L.filter(v => !v.annule);
     return h + (L.length ? resume(ok.length, 'vente', ok.reduce((s, v) => s + v.total, 0)) + '<div class="liste">' + L.slice(0, 300).map(ligneVente).join('') + '</div>' : '<div class="carte">' + vide('Aucune vente sur cette période', 'Changez la période ou enregistrez une vente à la caisse.') + '</div>');
@@ -111,7 +112,7 @@ function formTiers(id, type, pour) {
 function formReglement(id) {
   const t = C.tiers(id), du = C.solde(id);
   formulaire(t.type === 'client' ? 'Encaisser un paiement' : 'Payer le fournisseur', [{ t: 'texte', l: t.nom + ' : reste dû ' + M(du) }, { n: 'montant', l: 'Montant', t: 'nombre', v: du, req: 1 },
-    { n: 'mode', l: 'Moyen de paiement', t: 'select', opts: ['Espèces', 'Mobile Money', 'Chèque', 'Virement'].map(x => [x, x]) }, { n: 'note', l: 'Note (facultatif)' }], v => {
+    { n: 'mode', l: 'Moyen de paiement', t: 'select', opts: MODES.map(x => [x, x]) }, { n: 'note', l: 'Note (facultatif)' }], v => {
     const r = C.regler({ tiersId: id, montant: num(v.montant), mode: v.mode, note: v.note.trim(), userId: S.user.id });
     return () => ticketRecu(r.id);
   }, { ok: 'Enregistrer le règlement' });
@@ -250,7 +251,7 @@ const A = {
   pLibre: () => { const q = ($('#rech') || {}).value || ''; if (!q.trim()) return; S.panier.lignes.push({ articleId: '', libre: true, nom: q.trim(), qte: 1, pu: NaN }); rendre(); const ins = document.querySelectorAll('.panier [data-in=pp]'); const i = ins[ins.length - 1]; if (i) try { i.focus(); } catch (e) {} },
   corrigerVente: d => { const v = C.par(C.db.ventes, d.id); if (!v || v.annule || !admin()) return;
     confirmer('Corriger la facture ' + v.num, 'Tous les articles de cette facture vont revenir dans la caisse. Changez seulement ce qui est faux, puis validez : l’ancienne facture sera annulée et remplacée. Si vous abandonnez, rien ne change.' + (S.panier.lignes.length && !S.panier.remplace ? ' Le panier en cours sera vidé.' : ''), 'Corriger', () => {
-      S.panier = { lignes: v.lignes.map(l => l.libre ? { articleId: '', libre: true, nom: l.nom, qte: l.qte, pu: l.pu } : { articleId: l.articleId, qte: l.qte, pu: l.pu }), clientId: v.clientId || '', recu: v.paye < v.total ? v.paye : null, remplace: v.id, remplaceNum: v.num };
+      S.panier = { lignes: v.lignes.map(l => l.libre ? { articleId: '', libre: true, nom: l.nom, qte: l.qte, pu: l.pu } : { articleId: l.articleId, qte: l.qte, pu: l.pu }), clientId: v.clientId || '', recu: v.paye < v.total ? v.paye : null, remplace: v.id, remplaceNum: v.num, mode: v.mode || 'Espèces' };
       aller('caisse'); }); },
   pAbandon: () => { S.panier = panierVide(); rendre(); toast('Correction abandonnée : la facture n’a pas changé'); },
   pRetire: (d, el) => { S.panier.lignes.splice(+el.closest('.pl').dataset.i, 1); rendre(); },

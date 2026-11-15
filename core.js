@@ -77,6 +77,7 @@
     var v = { id: C.uid(), num: C.numero('V'), date: o.date || Date.now(), userId: o.userId, clientId: o.clientId || '', depotId: o.depotId,
               lignes: lignes, total: total, paye: paye, recu: recu, monnaie: Math.max(0, recu - total), annule: false };
     if (o.remplace) v.remplace = o.remplace;
+    if (paye > 0) v.mode = o.mode || 'Espèces';
     lignes.forEach(function (l) { if (!l.libre) mouv(l.articleId, o.depotId, -l.qte, 'vente', v.num, o.userId, v.date); });
     C.db.ventes.push(v);
     return v;
@@ -164,11 +165,12 @@
     var db = C.db;
     function dans(x) { return x.date >= de && x.date <= a && (!userId || x.userId === userId); }
     var R = { nbVentes: 0, ca: 0, cout: 0, encVentes: 0, credit: 0, reglClients: 0, depenses: 0, payeAchats: 0, reglFourn: 0, achats: 0, nbAchats: 0 };
-    var art = {}, cli = {}, fam = {}, cai = {}, four = {};
+    var art = {}, cli = {}, fam = {}, cai = {}, four = {}, modes = {};
+    function mode(m, x) { m = m || 'Espèces'; modes[m] = (modes[m] || 0) + x; }
     function caisse(uid) { return cai[uid] || (cai[uid] = { id: uid, nom: (C.user(uid) || {}).nom || '—', nb: 0, ca: 0, enc: 0, dep: 0 }); }
     db.ventes.forEach(function (v) {
       if (v.annule || !dans(v)) return;
-      R.nbVentes++; R.ca += v.total; R.encVentes += v.paye; R.credit += v.total - v.paye;
+      R.nbVentes++; R.ca += v.total; R.encVentes += v.paye; R.credit += v.total - v.paye; if (v.paye > 0) mode(v.mode, v.paye);
       var k = caisse(v.userId); k.nb++; k.ca += v.total; k.enc += v.paye;
       var cn = v.clientId ? (C.tiers(v.clientId) || {}).nom || '—' : 'Clients de passage', cid = v.clientId || '_';
       var c = cli[cid] || (cli[cid] = { id: cid, nom: cn, nb: 0, ca: 0 }); c.nb++; c.ca += v.total;
@@ -183,7 +185,7 @@
     });
     db.reglements.forEach(function (r) {
       if (!dans(r)) return;
-      if (r.type === 'client') { R.reglClients += r.montant; caisse(r.userId).enc += r.montant; } else R.reglFourn += r.montant;
+      if (r.type === 'client') { R.reglClients += r.montant; caisse(r.userId).enc += r.montant; mode(r.mode, r.montant); } else R.reglFourn += r.montant;
     });
     db.depenses.forEach(function (d) { if (dans(d)) { R.depenses += d.montant; caisse(d.userId).dep += d.montant; } });
     db.achats.forEach(function (x) {
@@ -198,6 +200,7 @@
     R.marge = R.ca - R.cout;
     R.benefice = R.marge - R.depenses;
     function tri(o, k) { return Object.keys(o).map(function (i) { return o[i]; }).sort(function (x, y) { return y[k] - x[k]; }); }
+    R.parMode = Object.keys(modes).map(function (k) { return { nom: k, montant: modes[k] }; }).sort(function (x, y) { return y.montant - x.montant; });
     R.parArticle = tri(art, 'ca'); R.parClient = tri(cli, 'ca'); R.parFamille = tri(fam, 'ca'); R.parCaissier = tri(cai, 'ca'); R.parFournisseur = tri(four, 'total');
     return R;
   };

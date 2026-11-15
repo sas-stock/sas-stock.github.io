@@ -110,8 +110,8 @@ async function ouvrirCompte(u) {
   FB.profil(u).catch(() => {});
   arretLic = FB.ecouterLicence(u.uid, fin => {
     licFin = fin; Store.set(cle('lic'), { fin });
-    const av = etat.ok + etat.raison; verifierLicence();
-    if (av !== etat.ok + etat.raison) rendre();
+    const av = etat.ok + '|' + etat.raison; verifierLicence();
+    if (av !== etat.ok + '|' + etat.raison) rendre();
     demarrerSync();
   }, () => {});
   demarrerSync();

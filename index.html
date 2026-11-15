@@ -213,6 +213,35 @@ table.t .d{text-align:right}
 @page{margin:12mm 10mm 16mm;@bottom-center{content:"Page " counter(page) " / " counter(pages);font-size:9pt;color:#555}}
 @media print{html,body{height:auto}#modale .boite{max-width:none;width:100%;overflow:visible}.facture{border:0;padding:0;font-size:11pt}.f-tab tr.vide td{height:300px}.f-tab tr.court td{height:60px}.f-logo{max-width:120px;max-height:90px}}
 </style>
+<style>
+/* 2.6 : corrections d'affichage et caisse rapide */
+.deux{grid-template-columns:minmax(0,1fr)} @media(min-width:900px){.deux{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.puces{flex-wrap:wrap;overflow:visible}
+.panier .pl{grid-template-columns:auto minmax(0,1fr) 36px;row-gap:6px}
+.panier .pl .st{grid-column:1/-1;margin-top:-4px}
+.qg{display:flex;align-items:center;gap:4px}
+.qg button{width:40px;height:40px;border:1px solid var(--trait);background:var(--surface);border-radius:9px;font-size:1.35rem;font-weight:700;color:var(--encre);line-height:1}
+.qg button:active{background:var(--vert-p)}
+.panier .pl .qg input{width:60px;text-align:center}
+.barreC{position:fixed;left:0;right:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom));z-index:25;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--encre);color:#fff;box-shadow:0 -6px 18px rgba(16,38,31,.18)}
+.barreC span{display:block;font-size:.78rem;color:#B9CCC2} .barreC b{font-size:1.45rem;font-weight:850;color:var(--mangue)}
+.barreC .btn{flex:none;min-width:150px}
+.espaceC{height:70px}
+@media(min-width:900px){.barreC,.espaceC{display:none}}
+.favs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.favs button{border:1px solid var(--trait);background:var(--surface);border-radius:12px;padding:9px 10px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:4px;min-height:60px;color:var(--encre)}
+.favs button:active{background:var(--vert-p)}
+.favs b{font-size:.88rem;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.favs span{font-size:.8rem;color:var(--doux)}
+@media(min-width:700px){.favs{grid-template-columns:repeat(4,1fr)}}
+.cherche.avec-scan input{padding-right:54px}
+.cherche .scan{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:42px;height:36px;border:0;border-radius:9px;background:var(--vert-p);color:var(--vert-f);display:grid;place-items:center}
+.cherche .scan svg{position:static;transform:none;width:22px;height:22px;color:var(--vert-f)}
+#scanbox{position:fixed;inset:0;z-index:100;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px}
+#scanbox video{width:100%;max-width:520px;max-height:60vh;border-radius:14px;background:#111;object-fit:cover}
+#scanbox .cadre{position:absolute;top:50%;left:50%;width:min(70vw,360px);height:120px;transform:translate(-50%,-60%);border:3px solid var(--mangue);border-radius:12px;pointer-events:none}
+#scanbox p{color:#fff} #scanbox .btn{max-width:320px}
+</style>
 </head>
 <body>
 <div id="lance" aria-hidden="true">
@@ -227,6 +256,7 @@ table.t .d{text-align:right}
 <script src="ui2.js"></script>
 <script src="ui3.js"></script>
 <script src="facture.js"></script>
+<script src="plus.js"></script>
 <script type="module" src="fb.js"></script>
 </body>
 </html>
