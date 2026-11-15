@@ -1,6 +1,6 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.4.0', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.5.0', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
 const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
@@ -225,7 +225,7 @@ function totalPanier(p) { return p.lignes.reduce((s, l) => s + (l.qte > 0 && l.p
 V.caisse = function () {
   const p = S.panier, dv = depotVente(), libre = admin() || C.db.meta.opt.prixLibre, tot = totalPanier(p);
   const clients = C.db.tiers.filter(t => t.type === 'client').sort((a, b) => a.nom.localeCompare(b.nom));
-  return '<div class="titre"><h1>Caisse</h1>' + (p.lignes.length ? '<button class="btn mini d" data-a="pVider">Vider le panier</button>' : '') + '</div><div class="caisse2"><div>' +
+  return (p.remplace ? '<div class="bandeau" style="border-radius:12px;margin-bottom:10px"><span>Correction de la facture <b>' + esc(p.remplaceNum) + '</b> : modifiez ce qui est faux, puis validez.</span><button data-a="pAbandon">Abandonner</button></div>' : '') + '<div class="titre"><h1>Caisse</h1>' + (p.lignes.length ? '<button class="btn mini d" data-a="pVider">Vider le panier</button>' : '') + '</div><div class="caisse2"><div>' +
     (p.lignes.length ? '<div class="liste panier" style="margin-bottom:10px">' + p.lignes.map((l, i) => { const a = l.libre ? { nom: l.nom } : C.article(l.articleId);
       return '<div class="pl" data-i="' + i + '"><div class="nm"><span>' + esc(a.nom) + '</span><span class="n" data-lt>' + M(l.qte * l.pu) + '</span></div><span class="st">' + (l.libre ? 'Hors stock' : 'En stock : ' + F(C.qte(a.id, dv.id))) + '</span>' +
         '<input inputmode="decimal" data-in="pq" value="' + (isNaN(l.qte) ? '' : l.qte) + '" aria-label="Quantité de ' + esc(a.nom) + '">' +
@@ -236,7 +236,7 @@ V.caisse = function () {
     '<label class="ch" style="margin-top:10px"><span>Client</span><div class="rangee"><select class="f" data-ch="pClient"><option value="">Client de passage</option>' + clients.map(c => '<option value="' + c.id + '"' + (p.clientId === c.id ? ' selected' : '') + '>' + esc(c.nom) + '</option>').join('') + '</select>' +
     '<button type="button" class="btn mini" data-a="nouveauTiers" data-type="client" data-pour="panier">Nouveau</button></div></label>' +
     '<label class="ch"><span>Montant reçu</span><input inputmode="numeric" data-in="precu" id="precu" value="' + (p.recu == null ? '' : p.recu) + '" placeholder="' + F(tot) + ' (tout est payé)"></label>' +
-    '<p class="info" id="cinfo"></p><button class="btn m large" data-a="pValider" id="cval">Valider la vente</button></div></div>';
+    '<p class="info" id="cinfo"></p><button class="btn m large" data-a="pValider" id="cval">' + (p.remplace ? 'Valider la facture corrigée' : 'Valider la vente') + '</button></div></div>';
 };
 function majCaisse() {
   const p = S.panier, tot = totalPanier(p);

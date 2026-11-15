@@ -16,10 +16,10 @@ function ticketVente(id, nouveau) {
     (v.lignes.length < 8 ? '<tr class="vide"><td></td><td></td><td></td><td></td><td></td></tr>' : '') + '</tbody></table>' +
     '<table class="f-tot">' + ligneTot('Montant payé', M(v.paye)) + (v.monnaie > 0 ? ligneTot('Monnaie rendue', M(v.monnaie)) : '') + (du > 0 ? ligneTot('Reste à payer', M(du)) : '') + ligneTot('Total', M(v.total), 1) + '</table>';
   ouvrir(nouveau ? 'Vente enregistrée' : 'Vente ' + v.num, cadreFacture({
-    infos: [['Date d’émission', dj(v.date)], ['Émis par', (C.user(v.userId) || {}).nom || ''], ['Mode de paiement', du > 0 ? (v.paye > 0 ? 'Acompte, reste à crédit' : 'À crédit') : 'Comptant']].concat(v.numAvant ? [['N° provisoire', v.numAvant]] : []),
+    infos: [['Date d’émission', dj(v.date)], ['Émis par', (C.user(v.userId) || {}).nom || ''], ['Mode de paiement', du > 0 ? (v.paye > 0 ? 'Acompte, reste à crédit' : 'À crédit') : 'Comptant']].concat(v.numAvant ? [['N° provisoire', v.numAvant]] : [], v.remplace ? [['Remplace la facture', v.remplace]] : [], v.remplaceePar ? [['Remplacée par', v.remplaceePar]] : []),
     dest: c ? [c.nom, c.tel] : ['Client de passage'], titre: 'Facture n° ' + v.num + (v.annule ? ' (annulée)' : ''), corps }) + boutonsTicket(texteTicket(v)) +
     (nouveau ? '<button class="btn p large nonimp" style="margin-top:8px" data-a="fermer">Vente suivante</button>'
-      : admin() && !v.annule ? '<button class="btn d large nonimp" style="margin-top:8px" data-a="annulerVente" data-id="' + v.id + '">Annuler cette vente</button>' : ''));
+      : admin() && !v.annule ? '<button class="btn p large nonimp" style="margin-top:8px" data-a="corrigerVente" data-id="' + v.id + '">Corriger cette vente</button><button class="btn d large nonimp" style="margin-top:8px" data-a="annulerVente" data-id="' + v.id + '">Annuler cette vente</button>' : ''));
 }
 function ticketRecu(id) {
   const r = C.par(C.db.reglements, id), cli = r.type === 'client', t = C.tiers(r.tiersId) || {};

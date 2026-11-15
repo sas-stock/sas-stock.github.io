@@ -76,6 +76,7 @@
     if (paye < total && !o.clientId) throw err('Vente à crédit : choisissez un client pour suivre son impayé.');
     var v = { id: C.uid(), num: C.numero('V'), date: o.date || Date.now(), userId: o.userId, clientId: o.clientId || '', depotId: o.depotId,
               lignes: lignes, total: total, paye: paye, recu: recu, monnaie: Math.max(0, recu - total), annule: false };
+    if (o.remplace) v.remplace = o.remplace;
     lignes.forEach(function (l) { if (!l.libre) mouv(l.articleId, o.depotId, -l.qte, 'vente', v.num, o.userId, v.date); });
     C.db.ventes.push(v);
     return v;
@@ -85,6 +86,18 @@
     if (!v || v.annule) throw err('Vente déjà annulée.');
     v.annule = true; v.annulePar = userId; v.annuleLe = Date.now();
     v.lignes.forEach(function (l) { if (!l.libre) mouv(l.articleId, v.depotId, l.qte, 'annulation', v.num, userId); });
+  };
+
+  C.remplacerVente = function (id, o) { // corriger une facture : annule l'ancienne et crée la nouvelle, ou ne change rien en cas d'erreur
+    var v = par(C.db.ventes, id);
+    if (!v || v.annule) throw err('Cette vente est déjà annulée.');
+    var nMouv = C.db.mouvements.length, seq = C.db.meta.seq.V;
+    C.annulerVente(id, o.userId);
+    try { o.remplace = v.num; var n = C.creerVente(o); v.remplaceePar = n.num; return n; }
+    catch (e) {
+      C.db.mouvements.splice(nMouv).forEach(function (m) { C.db.stock[m.articleId][m.depotId] -= m.qte; });
+      v.annule = false; delete v.annulePar; delete v.annuleLe; C.db.meta.seq.V = seq; throw e;
+    }
   };
 
   /* ---------- achats (bons de livraison) ---------- */
