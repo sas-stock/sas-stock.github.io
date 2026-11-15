@@ -64,7 +64,7 @@
       if (!(l.pu >= 0)) throw err('Prix invalide pour ' + a.nom + '.');
       besoin[a.id] = (besoin[a.id] || 0) + l.qte;
       total += l.qte * l.pu;
-      lignes.push({ articleId: a.id, nom: a.nom, qte: l.qte, pu: l.pu, pa: a.pa || 0 });
+      lignes.push(l.lot ? { articleId: a.id, nom: a.nom, qte: l.qte, pu: l.pu, pa: a.pa || 0, lot: l.lot } : { articleId: a.id, nom: a.nom, qte: l.qte, pu: l.pu, pa: a.pa || 0 });
     });
     if (!C.db.meta.opt.venteSansStock) for (var aid in besoin) {
       var dispo = C.qte(aid, o.depotId);
