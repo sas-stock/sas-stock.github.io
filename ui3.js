@@ -111,13 +111,13 @@ function vueActivation() {
   const r = etat.raison, mail = compte ? '<div class="code" style="font-size:1rem;letter-spacing:0;word-break:break-all">' + esc(compte.email) + '</div>' : '';
   const changer = '<button class="btn large" style="margin-top:10px" data-a="quitterCompte">Utiliser un autre compte Google</button>';
   if (r === 'chargement') return porte('<p class="ex">Ouverture de votre boutique…</p>');
-  if (r === 'premier') return porte('<p class="ex">Chargement de vos données…</p><div class="carte"><p>La première ouverture sur cet appareil demande Internet. Vérifiez votre connexion : le chargement reprend tout seul.</p></div>' + changer);
+  if (r === 'premier') return porte('<p class="ex">Chargement de vos données…</p><div class="carte"><p>La première ouverture sur cet appareil demande Internet. Vérifiez votre connexion : le chargement reprend tout seul.</p></div>' + changer, 1);
   if (r === 'horloge') return porte('<p class="ex">La date de cet appareil semble incorrecte. Réglez la date et l’heure, puis rouvrez l’application.</p>');
   if (r === 'attente') return porte('<p class="ex">Votre compte est créé. Il reste à activer votre licence.</p><div class="carte"><span class="petit doux gras">Votre adresse à envoyer à ' + esc(REVENDEUR.nom) + '</span>' + mail +
-    '<button class="btn mini" data-a="copier" data-t="' + esc(compte.email) + '">Copier l’adresse</button><p class="petit doux" style="margin-top:10px">Dès que ' + esc(REVENDEUR.nom) + (REVENDEUR.tel ? ' (' + esc(REVENDEUR.tel) + ')' : '') + ' active votre licence, l’application s’ouvre toute seule sur cet écran.</p></div>' + changer);
-  if (r === 'expiree') return porte('<p class="ex">Votre licence a expiré le ' + dj(etat.expDate.getTime()) + '. Vos données sont conservées. Contactez ' + esc(REVENDEUR.nom) + ' pour la prolonger : l’application se rouvrira toute seule.</p><div class="carte"><span class="petit doux gras">Votre compte</span>' + mail + '</div>' + changer);
+    '<button class="btn mini" data-a="copier" data-t="' + esc(compte.email) + '">Copier l’adresse</button><p class="petit doux" style="margin-top:10px">Dès que ' + esc(REVENDEUR.nom) + (REVENDEUR.tel ? ' (' + esc(REVENDEUR.tel) + ')' : '') + ' active votre licence, l’application s’ouvre toute seule sur cet écran.</p></div>' + changer, 1);
+  if (r === 'expiree') return porte('<p class="ex">Votre licence a expiré le ' + dj(etat.expDate.getTime()) + '. Vos données sont conservées. Contactez ' + esc(REVENDEUR.nom) + ' pour la prolonger : l’application se rouvrira toute seule.</p><div class="carte"><span class="petit doux gras">Votre compte</span>' + mail + '</div>' + changer, 1);
   return porte('<p class="ex">Connectez-vous avec le compte Google de votre boutique. Vos données seront les mêmes sur votre téléphone et votre ordinateur.</p><div class="carte">' +
-    (window.FB ? '<button class="btn p large" data-a="google">Continuer avec Google</button>' : '<p>Connexion Internet nécessaire pour la première ouverture. Vérifiez votre réseau puis rouvrez l’application.</p>') + '</div>');
+    (window.FB ? '<button class="btn p large" data-a="google">Continuer avec Google</button>' : '<p>Connexion Internet nécessaire pour la première ouverture. Vérifiez votre réseau puis rouvrez l’application.</p>') + '</div>', 1);
 }
 function modaleLicence() {
   ouvrir('Compte et licence', '<div class="carte"><p class="gras">' + esc(texteLicence()) + '</p><p class="petit doux" style="margin-top:10px">Compte Google de la boutique</p><p style="word-break:break-all">' + esc(compte.email) + '</p>' +
