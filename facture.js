@@ -11,10 +11,10 @@ function cadreFacture(o) {
 const ligneTot = (l, m, g) => '<tr' + (g ? ' class="g"' : '') + '><td>' + l + '</td><td class="n">' + m + '</td></tr>';
 function ticketVente(id, nouveau) {
   const v = C.par(C.db.ventes, id), c = v.clientId && C.tiers(v.clientId), du = v.total - v.paye;
-  const corps = '<table class="f-tab"><thead><tr><th>Désignation des produits</th><th>Quantité</th><th>Prix unitaire</th><th>Total</th></tr></thead><tbody>' +
-    v.lignes.map(l => '<tr><td>' + esc(l.nom) + '</td><td class="c n">' + F(l.qte) + '</td><td class="d n">' + M(l.pu) + '</td><td class="d n">' + M(l.qte * l.pu) + '</td></tr>').join('') +
-    '<tr class="vide"><td></td><td></td><td></td><td></td></tr></tbody></table>' +
-    '<table class="f-tot">' + ligneTot('Total', M(v.total)) + ligneTot('Montant payé', M(v.paye)) + (v.monnaie > 0 ? ligneTot('Monnaie rendue', M(v.monnaie)) : '') + ligneTot('Reste à payer', M(du), 1) + '</table>';
+  const corps = '<table class="f-tab"><thead><tr><th>Désignation des produits</th><th>Quantité</th><th>Unité</th><th>Prix unitaire</th><th>Total</th></tr></thead><tbody>' +
+    v.lignes.map(l => { const a = C.article(l.articleId) || {}; return '<tr><td>' + esc(l.nom) + '</td><td class="c n">' + F(l.qte) + '</td><td class="c">' + esc(a.unite || 'pièce') + '</td><td class="d n">' + M(l.pu) + '</td><td class="d n">' + M(l.qte * l.pu) + '</td></tr>'; }).join('') +
+    (v.lignes.length < 8 ? '<tr class="vide"><td></td><td></td><td></td><td></td><td></td></tr>' : '') + '</tbody></table>' +
+    '<table class="f-tot">' + ligneTot('Montant payé', M(v.paye)) + (v.monnaie > 0 ? ligneTot('Monnaie rendue', M(v.monnaie)) : '') + (du > 0 ? ligneTot('Reste à payer', M(du)) : '') + ligneTot('Total', M(v.total), 1) + '</table>';
   ouvrir(nouveau ? 'Vente enregistrée' : 'Vente ' + v.num, cadreFacture({
     infos: [['Date d’émission', dj(v.date)], ['Émis par', (C.user(v.userId) || {}).nom || ''], ['Mode de paiement', du > 0 ? (v.paye > 0 ? 'Acompte, reste à crédit' : 'À crédit') : 'Comptant']],
     dest: c ? [c.nom, c.tel] : ['Client de passage'], titre: 'Facture n° ' + v.num + (v.annule ? ' (annulée)' : ''), corps }) + boutonsTicket(texteTicket(v)) +
@@ -25,28 +25,37 @@ function ticketRecu(id) {
   const r = C.par(C.db.reglements, id), cli = r.type === 'client', t = C.tiers(r.tiersId) || {};
   const txt = [C.db.meta.shop.nom, 'Reçu de règlement ' + r.num + ' du ' + dh(r.date), (cli ? 'Client : ' : 'Fournisseur : ') + (t.nom || ''), 'Montant : ' + M(r.montant) + ' (' + r.mode + ')', 'Reste dû : ' + M(r.resteApres)].join('\n');
   const corps = '<table class="f-tab"><thead><tr><th>Désignation</th><th>Moyen de paiement</th><th>Montant</th></tr></thead><tbody><tr><td>' + esc(cli ? 'Règlement reçu du client' : 'Règlement payé au fournisseur') + (r.note ? '<br>' + esc(r.note) : '') + '</td><td class="c">' + esc(r.mode) + '</td><td class="d n">' + M(r.montant) + '</td></tr>' +
-    '<tr class="vide court"><td></td><td></td><td></td></tr></tbody></table><table class="f-tot">' + ligneTot(cli ? 'Montant reçu' : 'Montant payé', M(r.montant)) + ligneTot('Reste dû après ce règlement', M(r.resteApres), 1) + '</table>';
+    '<tr class="vide court"><td></td><td></td><td></td></tr></tbody></table><table class="f-tot">' + ligneTot('Reste dû après ce règlement', M(r.resteApres)) + ligneTot(cli ? 'Montant reçu' : 'Montant payé', M(r.montant), 1) + '</table>';
   ouvrir('Règlement ' + r.num, cadreFacture({ infos: [['Date d’émission', dj(r.date)], ['Émis par', (C.user(r.userId) || {}).nom || '']], dest: [t.nom, t.tel], titre: 'Reçu de règlement n° ' + r.num, corps }) + boutonsTicket(txt));
 }
-function blocLogo() {
-  const sh = C.db.meta.shop;
-  return '<div class="carte" id="blocLogo" style="margin-top:12px"><span class="petit doux gras">Logo sur les factures</span>' +
-    (sh.logo ? '<img src="' + esc(sh.logo) + '" alt="Logo actuel" style="display:block;max-height:80px;max-width:200px;margin:8px 0">' : '<p class="petit doux" style="margin:6px 0 8px">Aucun logo pour l’instant.</p>') +
-    '<div class="rangee"><label class="btn f" style="cursor:pointer">' + (sh.logo ? 'Changer le logo' : 'Choisir un logo') + '<input type="file" accept="image/*" data-ch="logo" hidden></label>' + (sh.logo ? '<button class="btn d f" data-a="retirerLogo">Retirer</button>' : '') + '</div></div>';
+/* Logo : dans Réglages (enregistré tout de suite) et sur l'écran de création de la boutique (gardé jusqu'à la création) */
+const logoActuel = tmp => tmp ? S.logoTmp : C.db.meta.shop.logo;
+function blocLogo(tmp) {
+  const src = logoActuel(tmp);
+  return '<div class="carte" id="blocLogo" style="margin-top:12px"><span class="petit doux gras">Logo sur les factures' + (tmp ? ' (facultatif)' : '') + '</span>' +
+    (src ? '<img src="' + esc(src) + '" alt="Logo actuel" style="display:block;max-height:80px;max-width:200px;margin:8px 0">' : '<p class="petit doux" style="margin:6px 0 8px">Aucun logo pour l’instant.</p>') +
+    '<div class="rangee"><label class="btn f" style="cursor:pointer">' + (src ? 'Changer le logo' : 'Choisir un logo') + '<input type="file" accept="image/*" data-ch="' + (tmp ? 'logoTmp' : 'logo') + '" hidden></label>' +
+    (src ? '<button type="button" class="btn d f" data-a="retirerLogo" data-tmp="' + (tmp ? 1 : '') + '">Retirer</button>' : '') + '</div></div>';
 }
-const majBlocLogo = () => { const b = $('#blocLogo'); if (b) b.outerHTML = blocLogo(); };
-const formBoutiqueBase = A.formBoutique;
-A.formBoutique = () => { formBoutiqueBase(); $('#modale .boite').insertAdjacentHTML('beforeend', blocLogo()); };
-A.retirerLogo = () => { delete C.db.meta.shop.logo; sauver(); majBlocLogo(); toast('Logo retiré'); };
-CH.logo = (v, el) => {
+const majBlocLogo = tmp => { const b = $('#blocLogo'); if (b) b.outerHTML = blocLogo(tmp); };
+function lireLogo(el, cb) {
   const fi = el.files && el.files[0]; if (!fi) return;
   const img = new Image(), url = URL.createObjectURL(fi);
   img.onload = () => {
     const k = Math.min(1, 320 / Math.max(img.width, img.height)), c = document.createElement('canvas');
     c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
     const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
-    URL.revokeObjectURL(url); C.db.meta.shop.logo = c.toDataURL('image/jpeg', 0.85); sauver(); majBlocLogo(); toast('Logo enregistré');
+    URL.revokeObjectURL(url); cb(c.toDataURL('image/jpeg', 0.85));
   };
   img.onerror = () => { URL.revokeObjectURL(url); toast('Cette image ne peut pas être lue. Essayez un fichier JPG ou PNG.', true); };
   img.src = url;
-};
+}
+const formBoutiqueBase = A.formBoutique;
+A.formBoutique = () => { formBoutiqueBase(); $('#modale .boite').insertAdjacentHTML('beforeend', blocLogo()); };
+A.retirerLogo = d => { if (d.tmp) S.logoTmp = null; else { delete C.db.meta.shop.logo; sauver(); toast('Logo retiré'); } majBlocLogo(!!d.tmp); };
+CH.logo = (v, el) => lireLogo(el, d => { C.db.meta.shop.logo = d; sauver(); majBlocLogo(); toast('Logo enregistré'); });
+CH.logoTmp = (v, el) => lireLogo(el, d => { S.logoTmp = d; majBlocLogo(true); });
+const vuePremiereBase = vuePremiere;
+vuePremiere = () => vuePremiereBase().replace('</form></div>', '</form>' + blocLogo(true) + '</div>');
+const premiereBase = FORMS.premiere;
+FORMS.premiere = v => { const logo = S.logoTmp; premiereBase(v); if (logo && C.db.users.length) { C.db.meta.shop.logo = logo; S.logoTmp = null; sauver(true); } };

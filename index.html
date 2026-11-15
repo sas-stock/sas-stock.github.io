@@ -205,7 +205,11 @@ table.t .d{text-align:right}
 .f-tot tr.g td{border-top:1.5px solid #111;font-weight:800;font-size:1rem;padding-top:6px}
 .f-bas{display:flex;justify-content:space-between;gap:12px;margin-top:22px;color:#333}
 .f-sign{min-width:110px;padding-bottom:36px}
-@media print{#modale .boite{max-width:none;width:100%}.facture{border:0;padding:0;font-size:11pt}.f-tab tr.vide td{height:300px}.f-tab tr.court td{height:60px}.f-logo{max-width:120px;max-height:90px}}
+.f-tab tr,.f-tot,.f-bas{break-inside:avoid;page-break-inside:avoid}
+.f-tot{break-after:avoid;page-break-after:avoid}
+@media(max-width:480px){.facture{padding:14px 10px;font-size:.78rem}.f-tab th{font-size:.68rem;padding:5px 3px}.f-tab td{padding:4px 3px}}
+@page{margin:12mm 10mm 16mm;@bottom-center{content:"Page " counter(page) " / " counter(pages);font-size:9pt;color:#555}}
+@media print{html,body{height:auto}#modale .boite{max-width:none;width:100%;overflow:visible}.facture{border:0;padding:0;font-size:11pt}.f-tab tr.vide td{height:300px}.f-tab tr.court td{height:60px}.f-logo{max-width:120px;max-height:90px}}
 </style>
 </head>
 <body>

@@ -1,6 +1,6 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.2.0', REVENDEUR = { nom: 'SAS TECH', tel: '' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.3.0', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre'], REVENDEUR = { nom: 'SAS TECH', tel: '' };
 const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
@@ -327,7 +327,7 @@ function formArticle(id, pour) {
   const a = id ? C.article(id) : {}, opF = [['', 'Sans famille']].concat(C.db.familles.map(x => [x.id, x.nom])), opD = C.db.depots.map(x => [x.id, x.nom]);
   const ch = [{ n: 'nom', l: 'Nom de l’article (une taille ou variante = un article)', v: a.nom, req: 1 }, { n: 'code', l: 'Code ou référence (facultatif)', v: a.code },
     { n: 'familleId', l: 'Famille', t: 'select', opts: opF, v: a.familleId }, { n: 'pa', l: 'Prix d’achat', t: 'nombre', v: a.pa }, { n: 'pv', l: 'Prix de vente', t: 'nombre', v: a.pv, req: 1 },
-    { n: 'seuil', l: 'Seuil d’alerte (stock bas)', t: 'nombre', v: a.seuil == null ? 0 : a.seuil }];
+    { n: 'seuil', l: 'Seuil d’alerte (stock bas)', t: 'nombre', v: a.seuil == null ? 0 : a.seuil }, { n: 'unite', l: 'Unité de vente', t: 'select', opts: UNITES.map(x => [x, x]), v: a.unite || 'pièce' }];
   if (!id) ch.push({ n: 'init', l: 'Stock de départ', t: 'nombre', v: '' }, { n: 'depot', l: 'Rangé dans', t: 'select', opts: opD });
   formulaire(id ? 'Modifier l’article' : 'Nouvel article', ch, v => {
     const nom = v.nom.trim(), code = v.code.trim(), pv = num(v.pv), pa = v.pa === '' ? 0 : num(v.pa), seuil = v.seuil === '' ? 0 : num(v.seuil);
@@ -335,10 +335,10 @@ function formArticle(id, pour) {
     if (!(pv >= 0)) throw new Error('Indiquez un prix de vente.');
     if (!(pa >= 0) || !(seuil >= 0)) throw new Error('Prix d’achat ou seuil invalide.');
     if (code && C.db.articles.some(x => x.id !== id && x.code && x.code.toLowerCase() === code.toLowerCase())) throw new Error('Ce code est déjà utilisé par un autre article.');
-    if (id) Object.assign(a, { nom, code, familleId: v.familleId, pa, pv, seuil });
+    if (id) Object.assign(a, { nom, code, familleId: v.familleId, pa, pv, seuil, unite: v.unite });
     else {
       const init = v.init === '' ? 0 : num(v.init); if (!(init >= 0)) throw new Error('Stock de départ invalide.');
-      const n = { id: C.uid(), nom, code, familleId: v.familleId, pa, pv, seuil, actif: true }; C.db.articles.push(n);
+      const n = { id: C.uid(), nom, code, familleId: v.familleId, pa, pv, seuil, unite: v.unite, actif: true }; C.db.articles.push(n);
       if (init > 0) C.ajuster(n.id, v.depot, init, 'Stock de départ', S.user.id);
       if (pour === 'achat') { S.ach.lignes.push({ articleId: n.id, qte: 1, pu: pa }); }
     }
