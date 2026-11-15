@@ -1,6 +1,6 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.3.1', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.3.2', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
 const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
@@ -289,8 +289,8 @@ V.stock = function () {
     puces('stab', [['articles', 'Articles'], ['alertes', 'À surveiller'], ['mouvements', 'Mouvements']]);
   if (f.stab === 'mouvements') return h + barrePer() + listeMouvements(null);
   h += '<div class="cherche">' + ic('loupe') + '<input data-in="sq" value="' + esc(f.sq || '') + '" placeholder="Chercher un article" autocomplete="off"></div>' +
-    '<div class="rangee" style="margin:8px 0 10px"><select class="f" data-ch="sfam"><option value="">Toutes les familles</option>' + C.db.familles.map(x => '<option value="' + x.id + '"' + (f.sfam === x.id ? ' selected' : '') + '>' + esc(x.nom) + '</option>').join('') + '</select>' +
-    '<select class="f" data-ch="sdep"><option value="">Tous les dépôts</option>' + C.db.depots.map(x => '<option value="' + x.id + '"' + (f.sdep === x.id ? ' selected' : '') + '>' + esc(x.nom) + '</option>').join('') + '</select></div><div id="sl">' + listeStock() + '</div>';
+    '<div class="rangee" style="margin:8px 0 10px"><select class="f" data-ch="sfam"><option value="">Toutes familles</option>' + C.db.familles.map(x => '<option value="' + x.id + '"' + (f.sfam === x.id ? ' selected' : '') + '>' + esc(x.nom) + '</option>').join('') + '</select>' +
+    '<select class="f" data-ch="sdep"><option value="">Tous dépôts</option>' + C.db.depots.map(x => '<option value="' + x.id + '"' + (f.sdep === x.id ? ' selected' : '') + '>' + esc(x.nom) + '</option>').join('') + '</select></div><div id="sl">' + listeStock() + '</div>';
   return h;
 };
 function listeStock() {

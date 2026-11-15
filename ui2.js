@@ -161,7 +161,7 @@ V.reglages = function () {
     sect('Familles d’articles', plus('formFamille', 'Famille'), C.db.familles.length ? '<div class="liste">' + C.db.familles.map(x => '<button class="ligne" data-a="formFamille" data-id="' + x.id + '"><div class="f"><b>' + esc(x.nom) + '</b><span>' + C.db.articles.filter(a => a.familleId === x.id && a.actif !== false).length + ' article(s)</span></div></button>').join('') + '</div>' : '<div class="carte">' + vide('Aucune famille', 'Classez vos articles : matelas, tapis, lits…') + '</div>') +
     sect('Règles de vente', '', '<div class="carte"><label class="coche"><input type="checkbox" data-ch="optVSS"' + (m.opt.venteSansStock ? ' checked' : '') + '><span>Autoriser la vente d’un article même si le stock est insuffisant</span></label>' +
       '<label class="coche" style="margin:0"><input type="checkbox" data-ch="optPL"' + (m.opt.prixLibre ? ' checked' : '') + '><span>Autoriser la caisse à modifier le prix de vente</span></label></div>') + '</div>' +
-    sect('Copie de sécurité', '', '<div class="carte"><p class="petit doux" style="margin-bottom:10px">Vos données restent sur cet appareil. Enregistrez une copie chaque semaine et gardez-la ailleurs (WhatsApp, e-mail, clé USB). ' + (m.sauvegarde ? 'Dernière copie le ' + dj(m.sauvegarde) + '.' : 'Aucune copie pour l’instant.') + '</p>' +
+    sect('Copie de sécurité', '', '<div class="carte"><p class="petit doux" style="margin-bottom:10px">Vos données sont enregistrées en ligne sur votre compte Google et sur chaque appareil connecté. Vous pouvez en plus garder une copie dans un fichier (WhatsApp, e-mail, clé USB). ' + (m.sauvegarde ? 'Dernière copie le ' + dj(m.sauvegarde) + '.' : 'Aucune copie pour l’instant.') + '</p>' +
       '<div class="rangee"><button class="btn p f" data-a="exporter">Enregistrer une copie</button><label class="btn f" style="cursor:pointer">Restaurer une copie<input type="file" accept=".json,application/json" data-ch="fichier" hidden></label></div></div>') +
     sect('Licence', '', '<button class="ligne carte" data-a="licence"><div class="f"><b>' + esc(texteLicence()) + '</b><span>' + esc(compte ? compte.email : '') + ', version ' + VERSION + '</span></div><span class="etiq">Voir</span></button>');
 };
@@ -222,7 +222,7 @@ function rendre() {
   if (apres[S.vue]) apres[S.vue]();
 }
 function aller(v) { S.vue = v; rendre(); window.scrollTo(0, 0); }
-function entrer(u) { S.user = u; S.pin = ''; S.vue = 'accueil'; try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {} }
+function entrer(u) { S.user = u; S.pin = ''; const t = $('#toast'); if (t) t.hidden = true; S.vue = 'accueil'; try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {} }
 function ajouteLigne(p, id, pu) { const l = p.lignes.find(x => x.articleId === id); if (l) l.qte = (l.qte > 0 ? l.qte : 0) + 1; else p.lignes.push({ articleId: id, qte: 1, pu }); S.focusRech = true; rendre(); }
 const A = {
   aller: d => aller(d.v), fermer, okConf: () => { const cb = confCb; fermer(); if (cb) cb(); },
@@ -285,7 +285,7 @@ const CH = {
   fichier: (v, el) => { const fi = el.files && el.files[0]; if (!fi) return;
     fi.text().then(t => { let d; try { d = JSON.parse(t); } catch (e) { d = null; }
       if (!d || !d.db || !Array.isArray(d.db.articles) || !Array.isArray(d.db.users) || !d.db.meta) return toast('Ce fichier n’est pas une copie SAS STOCK.', true);
-      confirmer('Restaurer la copie', 'Les données actuelles seront remplacées par la copie du ' + dj(d.date || Date.now()) + ' (' + d.db.articles.length + ' articles, ' + d.db.ventes.length + ' ventes).', 'Restaurer', () => { C.db = d.db; sauver(true); S.user = null; S.pinU = null; S.panier = panierVide(); S.ach = null; rendre(); toast('Copie restaurée'); }, true);
+      confirmer('Restaurer la copie', 'Les données actuelles seront remplacées par la copie du ' + dj(d.date || Date.now()) + ' (' + d.db.articles.length + ' articles, ' + d.db.ventes.length + ' ventes). Le changement s’appliquera aussi à vos autres appareils.', 'Restaurer', () => { C.db = d.db; sauver(true); S.user = null; S.pinU = null; S.panier = panierVide(); S.ach = null; rendre(); toast('Copie restaurée'); }, true);
     }); }
 };
 const FORMS = {

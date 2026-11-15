@@ -108,7 +108,7 @@
     ac.lignes.forEach(function (l) {
       if (C.qte(l.articleId, ac.depotId) < l.qte) throw err('Impossible : une partie de ' + l.nom + ' a déjà quitté ce dépôt.');
     });
-    ac.annule = true;
+    ac.annule = true; ac.annulePar = userId; ac.annuleLe = Date.now();
     ac.lignes.forEach(function (l) { mouv(l.articleId, ac.depotId, -l.qte, 'annulation', ac.num, userId); });
   };
 

@@ -10,6 +10,18 @@ function entites() {
   for (const p in LISTES) d[LISTES[p]].forEach(x => o.set(p + '_' + x.id, JSON.stringify(x)));
   return o;
 }
+function dedoublonner(d) { // deux appareils hors ligne peuvent créer le même numéro : le plus ancien le garde, l'autre reçoit le suivant (même résultat sur tous les appareils)
+  let modif = false;
+  [['V', 'ventes'], ['A', 'achats'], ['R', 'reglements']].forEach(p => {
+    const vus = new Set();
+    d[p[1]].slice().sort((x, y) => x.date - y.date || (x.id < y.id ? -1 : 1)).forEach(x => {
+      if (!vus.has(x.num)) { vus.add(x.num); return; }
+      const ancien = x.num; x.numAvant = x.numAvant || ancien; x.num = C.numero(p[0]); vus.add(x.num); modif = true;
+      d.mouvements.forEach(m => { if (m.ref === ancien && ((m.type === 'vente' || m.type === 'achat') && m.date === x.date || m.type === 'annulation' && x.annuleLe && Math.abs(m.date - x.annuleLe) < 6e4)) m.ref = x.num; });
+    });
+  });
+  return modif;
+}
 function appliquer(docs) {
   let change = false; const d = C.db;
   docs.forEach(x => {
@@ -26,6 +38,7 @@ function appliquer(docs) {
   ['ventes', 'achats', 'reglements', 'depenses', 'mouvements'].forEach(l => d[l].sort((a, b) => a.date - b.date));
   const s = {}; d.mouvements.forEach(m => { const a = s[m.articleId] || (s[m.articleId] = {}); a[m.depotId] = (a[m.depotId] || 0) + m.qte; }); d.stock = s;
   [['V', 'ventes'], ['A', 'achats'], ['R', 'reglements']].forEach(p => d[p[1]].forEach(y => { const n = parseInt(String(y.num).split('-')[1], 10); if (n > d.meta.seq[p[0]]) d.meta.seq[p[0]] = n; }));
+  if (dedoublonner(d)) setTimeout(pousser, 50);
   if (S.user) { const u = C.user(S.user.id); if (!u || u.actif === false) S.user = null; else S.user = u; }
   return true;
 }
@@ -122,6 +135,7 @@ function vueActivation() {
 function modaleLicence() {
   ouvrir('Compte et licence', '<div class="carte"><p class="gras">' + esc(texteLicence()) + '</p><p class="petit doux" style="margin-top:10px">Compte Google de la boutique</p><p style="word-break:break-all">' + esc(compte.email) + '</p>' +
     '<p class="petit doux" style="margin-top:10px">État : ' + esc(TXT[syncEtat] === 'SAS STOCK' ? 'En attente' : TXT[syncEtat]) + '</p></div>' +
+    '<div class="carte" style="margin-top:12px"><p class="petit doux">Pour prolonger la licence ou obtenir de l’aide, contactez ' + esc(REVENDEUR.nom) + ' :</p><p style="margin-top:6px"><a class="gras" style="color:inherit" href="tel:' + REVENDEUR.tel2 + '">' + esc(REVENDEUR.tel) + '</a></p><p style="word-break:break-all"><a style="color:inherit" href="mailto:' + REVENDEUR.mail + '">' + esc(REVENDEUR.mail) + '</a></p></div>' +
     '<button class="btn p large" style="margin-top:12px" data-a="synchro">Synchroniser maintenant</button><button class="btn large" style="margin-top:8px" data-a="quitterCompte">Utiliser un autre compte Google</button>');
 }
 A.licence = () => modaleLicence();
