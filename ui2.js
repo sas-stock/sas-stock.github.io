@@ -247,10 +247,11 @@ const A = {
   annulerAchat: d => confirmer('Annuler l’achat', 'Les quantités reçues sont retirées du stock.', 'Annuler l’achat', () => { if (agir(() => C.annulerAchat(d.id, S.user.id))) { rendre(); toast('Achat annulé'); } }, true),
   imprimer: () => { try { window.print(); } catch (e) { toast('Impression indisponible ici.', true); } },
   pAjoute: d => ajouteLigne(S.panier, d.id, C.article(d.id).pv),
+  pLibre: () => { const q = ($('#rech') || {}).value || ''; if (!q.trim()) return; S.panier.lignes.push({ articleId: '', libre: true, nom: q.trim(), qte: 1, pu: NaN }); rendre(); const ins = document.querySelectorAll('.panier [data-in=pp]'); const i = ins[ins.length - 1]; if (i) try { i.focus(); } catch (e) {} },
   pRetire: (d, el) => { S.panier.lignes.splice(+el.closest('.pl').dataset.i, 1); rendre(); },
   pVider: () => confirmer('Vider le panier', 'Tous les articles du panier seront retirés.', 'Vider', () => { S.panier = panierVide(); rendre(); }, true),
   pValider: () => { const p = S.panier;
-    const v = agir(() => C.creerVente({ lignes: p.lignes.map(l => ({ articleId: l.articleId, qte: l.qte, pu: l.pu })), clientId: p.clientId, recu: p.recu, userId: S.user.id, depotId: depotVente().id }));
+    const v = agir(() => C.creerVente({ lignes: p.lignes.map(l => ({ articleId: l.articleId, libre: l.libre, nom: l.nom, qte: l.qte, pu: l.pu })), clientId: p.clientId, recu: p.recu, userId: S.user.id, depotId: depotVente().id }));
     if (v) { S.panier = panierVide(); rendre(); ticketVente(v.id, true); } },
   nouveauTiers: d => formTiers(null, d.type, d.pour), formTiers: d => formTiers(d.id), ficheTiers: d => ficheTiers(d.id), formReglement: d => formReglement(d.id),
   nouvelAchat: () => { S.ach = S.ach || { lignes: [], fournisseurId: '', depotId: C.db.depots[0].id, ref: '', paye: null }; aller('achat'); },

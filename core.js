@@ -49,6 +49,15 @@
     if (!o.lignes || !o.lignes.length) throw err('Ajoutez au moins un article.');
     var total = 0, besoin = {}, lignes = [];
     o.lignes.forEach(function (l) {
+      if (l.libre) { // article saisi à la main, hors stock
+        var nm = String(l.nom || '').trim();
+        if (!nm) throw err('Indiquez le nom de l’article hors stock.');
+        if (!(l.qte > 0)) throw err('Quantité invalide pour ' + nm + '.');
+        if (!(l.pu >= 0)) throw err('Indiquez le prix unitaire de ' + nm + '.');
+        total += l.qte * l.pu;
+        lignes.push({ articleId: '', libre: true, nom: nm, qte: l.qte, pu: l.pu, pa: 0 });
+        return;
+      }
       var a = C.article(l.articleId);
       if (!a) throw err('Article introuvable.');
       if (!(l.qte > 0)) throw err('Quantité invalide pour ' + a.nom + '.');
@@ -67,7 +76,7 @@
     if (paye < total && !o.clientId) throw err('Vente à crédit : choisissez un client pour suivre son impayé.');
     var v = { id: C.uid(), num: C.numero('V'), date: o.date || Date.now(), userId: o.userId, clientId: o.clientId || '', depotId: o.depotId,
               lignes: lignes, total: total, paye: paye, recu: recu, monnaie: Math.max(0, recu - total), annule: false };
-    lignes.forEach(function (l) { mouv(l.articleId, o.depotId, -l.qte, 'vente', v.num, o.userId, v.date); });
+    lignes.forEach(function (l) { if (!l.libre) mouv(l.articleId, o.depotId, -l.qte, 'vente', v.num, o.userId, v.date); });
     C.db.ventes.push(v);
     return v;
   };
@@ -75,7 +84,7 @@
     var v = par(C.db.ventes, id);
     if (!v || v.annule) throw err('Vente déjà annulée.');
     v.annule = true; v.annulePar = userId; v.annuleLe = Date.now();
-    v.lignes.forEach(function (l) { mouv(l.articleId, v.depotId, l.qte, 'annulation', v.num, userId); });
+    v.lignes.forEach(function (l) { if (!l.libre) mouv(l.articleId, v.depotId, l.qte, 'annulation', v.num, userId); });
   };
 
   /* ---------- achats (bons de livraison) ---------- */
@@ -152,7 +161,7 @@
       var c = cli[cid] || (cli[cid] = { id: cid, nom: cn, nb: 0, ca: 0 }); c.nb++; c.ca += v.total;
       v.lignes.forEach(function (l) {
         var m = l.qte * l.pu, co = l.qte * l.pa; R.cout += co;
-        var x = art[l.articleId] || (art[l.articleId] = { id: l.articleId, nom: l.nom, qte: 0, ca: 0, marge: 0 });
+        var ka = l.articleId || 'libre:' + l.nom, x = art[ka] || (art[ka] = { id: ka, nom: l.libre ? l.nom + ' (hors stock)' : l.nom, qte: 0, ca: 0, marge: 0 });
         x.qte += l.qte; x.ca += m; x.marge += m - co;
         var ar = C.article(l.articleId), f = ar && C.famille(ar.familleId), fid = f ? f.id : '_';
         var y = fam[fid] || (fam[fid] = { id: fid, nom: f ? f.nom : 'Sans famille', qte: 0, ca: 0, marge: 0 });

@@ -1,6 +1,6 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.3.2', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.4.0', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
 const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
@@ -226,10 +226,10 @@ V.caisse = function () {
   const p = S.panier, dv = depotVente(), libre = admin() || C.db.meta.opt.prixLibre, tot = totalPanier(p);
   const clients = C.db.tiers.filter(t => t.type === 'client').sort((a, b) => a.nom.localeCompare(b.nom));
   return '<div class="titre"><h1>Caisse</h1>' + (p.lignes.length ? '<button class="btn mini d" data-a="pVider">Vider le panier</button>' : '') + '</div><div class="caisse2"><div>' +
-    (p.lignes.length ? '<div class="liste panier" style="margin-bottom:10px">' + p.lignes.map((l, i) => { const a = C.article(l.articleId);
-      return '<div class="pl" data-i="' + i + '"><div class="nm"><span>' + esc(a.nom) + '</span><span class="n" data-lt>' + M(l.qte * l.pu) + '</span></div><span class="st">En stock : ' + F(C.qte(a.id, dv.id)) + '</span>' +
+    (p.lignes.length ? '<div class="liste panier" style="margin-bottom:10px">' + p.lignes.map((l, i) => { const a = l.libre ? { nom: l.nom } : C.article(l.articleId);
+      return '<div class="pl" data-i="' + i + '"><div class="nm"><span>' + esc(a.nom) + '</span><span class="n" data-lt>' + M(l.qte * l.pu) + '</span></div><span class="st">' + (l.libre ? 'Hors stock' : 'En stock : ' + F(C.qte(a.id, dv.id))) + '</span>' +
         '<input inputmode="decimal" data-in="pq" value="' + (isNaN(l.qte) ? '' : l.qte) + '" aria-label="Quantité de ' + esc(a.nom) + '">' +
-        '<input inputmode="numeric" data-in="pp" value="' + (isNaN(l.pu) ? '' : l.pu) + '" aria-label="Prix unitaire"' + (libre ? '' : ' readonly') + '><button class="x" data-a="pRetire" aria-label="Retirer ' + esc(a.nom) + '">×</button></div>'; }).join('') + '</div>' : '') +
+        '<input inputmode="numeric" data-in="pp" value="' + (isNaN(l.pu) ? '' : l.pu) + '" aria-label="Prix unitaire"' + (l.libre ? ' placeholder="Prix"' : '') + (libre || l.libre ? '' : ' readonly') + '><button class="x" data-a="pRetire" aria-label="Retirer ' + esc(a.nom) + '">×</button></div>'; }).join('') + '</div>' : '') +
     '<div class="cherche">' + ic('loupe') + '<input id="rech" data-in="rech" placeholder="Tapez le nom ou le code d’un article" autocomplete="off" enterkeyhint="search"></div><div id="res" style="margin-top:8px"></div>' +
     (!C.db.articles.length ? '<div class="carte" style="margin-top:10px">' + vide('Aucun article enregistré', admin() ? 'Créez vos articles dans Stock, puis revenez vendre.' : 'Demandez au gérant d’ajouter les articles.') + '</div>' : '') +
     '</div><div class="encaisse" style="margin-top:14px"' + (p.lignes.length ? '' : ' hidden') + '><div class="tt"><span>Total à payer</span><b class="n" id="ctot">' + M(tot) + '</b></div>' +
@@ -252,9 +252,9 @@ apres.caisse = function () { majCaisse(); if (S.focusRech) { S.focusRech = false
 function majRes() {
   const q = $('#rech').value, L = chercheArticles(q), dv = depotVente(), box = $('#res');
   if (!q.trim()) { box.innerHTML = ''; return; }
-  box.innerHTML = L.length ? '<div class="liste">' + L.map(a => { const s = C.qte(a.id, dv.id);
-    return '<button class="ligne" data-a="pAjoute" data-id="' + a.id + '"><div class="f"><b>' + esc(a.nom) + '</b><span>' + esc(a.code || '') + ' En stock : ' + F(s) + ' ' + etiqStock(a, s) + '</span></div><div class="d"><b class="n">' + M(a.pv) + '</b></div></button>'; }).join('') + '</div>'
-    : '<div class="carte">' + vide('Aucun article trouvé', 'Vérifiez l’orthographe ou le code.') + '</div>';
+  const horsStock = '<button class="ligne" data-a="pLibre"><div class="f"><b>Ajouter « ' + esc(q.trim()) + ' » (hors stock)</b><span>Article qui n’est pas dans votre stock : vous saisissez la quantité et le prix</span></div><div class="d"><b class="n">+</b></div></button>';
+  box.innerHTML = '<div class="liste">' + L.map(a => { const s = C.qte(a.id, dv.id);
+    return '<button class="ligne" data-a="pAjoute" data-id="' + a.id + '"><div class="f"><b>' + esc(a.nom) + '</b><span>' + esc(a.code || '') + ' En stock : ' + F(s) + ' ' + etiqStock(a, s) + '</span></div><div class="d"><b class="n">' + M(a.pv) + '</b></div></button>'; }).join('') + horsStock + '</div>';
 }
 function texteTicket(v) {
   const sh = C.db.meta.shop, c = v.clientId && C.tiers(v.clientId);
