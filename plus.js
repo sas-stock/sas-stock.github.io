@@ -405,3 +405,32 @@ A.scanCode = () => scanner(code => {
   const inp = $('#modale [name=code]'); if (inp) inp.value = code;
   const autre = articleParCode(code); if (autre) toast('Attention : ce code est déjà utilisé par ' + autre.nom + '.', true);
 });
+
+/* ---------- nombre de factures en attente d'envoi dans la bulle En ligne / Hors ligne ---------- */
+let attente = { n: 0, v: 0 }, tAttente = null;
+function compterAttente() {
+  if (!compte || !sy || !sy.init) { attente = { n: 0, v: 0 }; return; }
+  let n = 0, v = 0; const ent = entites();
+  ent.forEach((j, k) => { if (sy.h[k] !== hache(j)) { n++; if (k.startsWith('v_')) v++; } });
+  Object.keys(sy.h).forEach(k => { if (!ent.has(k)) n++; });
+  attente = { n, v };
+}
+function texteAttente(court) {
+  if (!attente.n) return '';
+  return attente.v ? attente.v + (court ? '' : ' facture' + (attente.v > 1 ? 's' : '')) : attente.n + (court ? '' : ' modif.');
+}
+pastille = function () {
+  const h = navigator.onLine === false || syncEtat === 'horsligne', k = syncEtat === 'erreur', t = attente.n ? texteAttente() : '';
+  return '<span id="reseau" class="reseau' + (h ? ' off' : k ? ' ko' : '') + '"' + (t ? ' title="' + t + ' en attente d’envoi"' : '') + '>' + (h ? 'Hors ligne' : k ? 'En pause' : 'En ligne') +
+    (t ? '<span class="na"> · ' + texteAttente(true) + '</span><span class="nl">' + t.replace(/^\d+/, '') + '</span>' : '') + '</span>';
+};
+function majAttente() {
+  compterAttente();
+  const r = $('#reseau'); if (r) r.outerHTML = pastille();
+  const e = $('#etatSync');
+  if (e) e.textContent = attente.n && syncEtat !== 'envoi' ? (attente.v ? texteAttente() + ' à envoyer' : 'Modifications à envoyer') : TXT[syncEtat];
+}
+const majSyncBase = majSync;
+majSync = function (e) { majSyncBase(e); majAttente(); };
+const sauverBase = sauver;
+sauver = function (tout) { const r = sauverBase(tout); clearTimeout(tAttente); tAttente = setTimeout(majAttente, 250); return r; };
