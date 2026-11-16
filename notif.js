@@ -1,0 +1,96 @@
+/* SAS STOCK — centre de notifications (2.9.0)
+   Une cloche dans l'en-tête, avec le nombre d'alertes non vues. Rien ne s'ouvre tout seul.
+   Les alertes sont calculées à partir des données (aucune donnée en plus n'est enregistrée en ligne).
+   « Vu » masque une alerte sur cet appareil jusqu'à ce que son contenu change (signature). */
+{
+P.cloche = '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>';
+const J = 864e5;
+const cleVu = () => 'sasNotifVu:' + (typeof compte !== 'undefined' && compte ? compte.uid : 'local') + ':' + (S.user ? S.user.id : '');
+const lireVu = () => { try { return JSON.parse(localStorage.getItem(cleVu()) || '{}'); } catch (e) { return {}; } };
+const ecrireVu = o => { try { localStorage.setItem(cleVu(), JSON.stringify(o)); } catch (e) {} };
+
+// date de la plus ancienne vente à crédit encore impayée (les règlements soldent d'abord les plus anciennes)
+function plusVieuxCredit(tid) {
+  let regle = C.db.reglements.filter(r => r.tiersId === tid).reduce((s, r) => s + r.montant, 0);
+  const V = C.db.ventes.filter(v => !v.annule && v.clientId === tid && v.total - v.paye > 0).sort((a, b) => a.date - b.date);
+  for (const v of V) { const du = v.total - v.paye; if (regle >= du) { regle -= du; continue; } return v.date; }
+  return null;
+}
+
+function alertes() {
+  if (!C.db || !S.user) return [];
+  const adm = admin(), L = [], now = Date.now();
+  const art = C.db.articles.filter(a => a.actif !== false);
+  // stock
+  const rupt = art.filter(a => C.qteTot(a.id) <= 0), bas = art.filter(a => { const q = C.qteTot(a.id); return q > 0 && q <= (a.seuil || 0); });
+  if (rupt.length) L.push({ k: 'rupture', sig: rupt.map(a => a.id).sort().join(','), n: 'ko', t: rupt.length === 1 ? rupt[0].nom + ' : rupture de stock' : rupt.length + ' articles en rupture de stock',
+    s: rupt.length === 1 ? 'Réapprovisionnez ou retirez-le de la vente.' : rupt.slice(0, 4).map(a => a.nom).join(', ') + (rupt.length > 4 ? '…' : ''), b: [['Voir', 'notifStock']] });
+  if (bas.length) L.push({ k: 'bas', sig: bas.map(a => a.id + ':' + C.qteTot(a.id)).sort().join(','), n: 'al', t: bas.length === 1 ? bas[0].nom + ' : stock bas (' + F(C.qteTot(bas[0].id)) + ')' : bas.length + ' articles bientôt épuisés',
+    s: bas.length === 1 ? 'Pensez à recommander.' : bas.slice(0, 4).map(a => a.nom + ' (' + F(C.qteTot(a.id)) + ')').join(', ') + (bas.length > 4 ? '…' : ''), b: [['Voir', 'notifStock']] });
+  // crédits clients de plus de 30 jours
+  if (adm) {
+    const ret = C.impayes('client').map(x => ({ t: x.t, du: x.du, d: plusVieuxCredit(x.t.id) })).filter(x => x.d && now - x.d > 30 * J).sort((a, b) => a.d - b.d);
+    if (ret.length) L.push({ k: 'credits', sig: ret.map(x => x.t.id + ':' + Math.round(x.du)).join(','), n: 'al',
+      t: ret.length === 1 ? ret[0].t.nom + ' vous doit ' + M(ret[0].du) + ' depuis ' + Math.floor((now - ret[0].d) / J) + ' jours' : ret.length + ' clients doivent de l’argent depuis plus de 30 jours',
+      s: ret.length === 1 ? 'Relancez-le par WhatsApp depuis sa fiche.' : 'Total : ' + M(ret.reduce((s, x) => s + x.du, 0)),
+      liste: ret.slice(0, 5).map(x => ['ficheTiers', x.t.id, x.t.nom, M(x.du) + ' · ' + Math.floor((now - x.d) / J) + ' j']) });
+    const fo = C.impayes('fournisseur');
+    if (fo.length) { const tot = fo.reduce((s, x) => s + x.du, 0);
+      L.push({ k: 'fournisseurs', sig: fo.map(x => x.t.id + ':' + Math.round(x.du)).join(','), n: 'info', t: 'Vous devez ' + M(tot) + (fo.length === 1 ? ' à ' + fo[0].t.nom : ' à ' + fo.length + ' fournisseurs'),
+        s: fo.length > 1 ? fo.slice(0, 3).map(x => x.t.nom + ' ' + M(x.du)).join(', ') : '', b: [['Voir', 'notifFour']] }); }
+  }
+  // inventaires en cours
+  (C.db.inventaires || []).filter(x => x.statut !== 'valide').forEach(x => {
+    const n = C.db.articles.filter(a => a.actif !== false && (!x.familleId || a.familleId === x.familleId)), c = n.filter(a => x.comptes && x.comptes[a.id] != null).length;
+    L.push({ k: 'inv:' + x.id, sig: String(c), n: 'info', t: 'Inventaire ' + x.num + ' en cours', s: c + ' / ' + n.length + ' articles comptés' + (adm ? ' · pensez à le valider' : ''), b: [['Continuer', 'invOuvrir', x.id]] });
+  });
+  // envois en attente
+  if (typeof attente !== 'undefined' && attente.n && (navigator.onLine === false || syncEtat !== 'ok'))
+    L.push({ k: 'attente', sig: 'x', n: 'info', t: (attente.v ? attente.v + ' facture' + (attente.v > 1 ? 's' : '') : attente.n + ' modification' + (attente.n > 1 ? 's' : '')) + ' pas encore envoyée' + ((attente.v || attente.n) > 1 ? 's' : ''),
+      s: 'Tout part automatiquement dès que la connexion revient. Ne désinstallez pas l’application d’ici là.', fixe: 1 });
+  if (adm) {
+    // licence
+    if (etat && etat.ok && !etat.aVie && !etat.maitre && etat.reste <= 15)
+      L.push({ k: 'licence', sig: String(etat.reste <= 3 ? 'r' + etat.reste : etat.reste <= 7 ? '7' : '15'), n: etat.reste <= 7 ? 'ko' : 'al', t: 'Votre licence se termine dans ' + etat.reste + ' jour' + (etat.reste > 1 ? 's' : ''),
+        s: 'Renouvelez auprès de SAS TECH (07 48 67 13 34) pour ne pas être bloqué.', b: [['Prolonger', 'licence']] });
+    // copie de sécurité
+    const sv = C.db.meta.sauvegarde || 0;
+    if (C.db.ventes.length >= 20 && now - sv > 30 * J)
+      L.push({ k: 'copie', sig: String(Math.floor(now / (30 * J))), n: 'info', t: sv ? 'Dernière copie de sécurité il y a ' + Math.floor((now - sv) / J) + ' jours' : 'Aucune copie de sécurité dans un fichier',
+        s: 'Vos données sont en ligne, mais une copie dans un fichier (WhatsApp, clé USB) protège en plus.', b: [['Faire une copie', 'notifCopie']] });
+  }
+  return L;
+}
+const nonVues = (L, vu) => L.filter(x => x.fixe || vu[x.k] !== x.sig);
+
+/* ---------- la cloche ---------- */
+function cloche() {
+  const n = nonVues(alertes(), lireVu()).length;
+  return '<button id="cloche" class="cloche' + (n ? ' on' : '') + '" data-a="notifs" aria-label="Notifications' + (n ? ' : ' + n + ' nouvelle' + (n > 1 ? 's' : '') : '') + '">' + ic('cloche') + (n ? '<b>' + (n > 9 ? '9+' : n) + '</b>' : '') + '</button>';
+}
+const majCloche = () => { const c = $('#cloche'); if (c) c.outerHTML = cloche(); };
+const coqueNotifBase = coque;
+coque = function (contenu) { return coqueNotifBase(contenu).replace('<button class="moi"', () => cloche() + '<button class="moi"'); };
+if (typeof majAttente === 'function') { const majAttenteNotifBase = majAttente; majAttente = function () { majAttenteNotifBase(); majCloche(); }; }
+
+/* ---------- le panneau ---------- */
+function carteNotif(x, vue) {
+  return '<div class="carte notif ' + x.n + (vue ? ' vue' : '') + '"><div class="nt"><b>' + esc(x.t) + '</b>' + (x.s ? '<span>' + esc(x.s) + '</span>' : '') + '</div>' +
+    (x.liste ? '<div class="liste" style="margin-top:8px">' + x.liste.map(l => '<button class="ligne" data-a="' + l[0] + '" data-id="' + esc(l[1]) + '"><div class="f"><b>' + esc(l[2]) + '</b></div><div class="d"><span>' + esc(l[3]) + '</span></div></button>').join('') + '</div>' : '') +
+    '<div class="rangee nb">' + (x.b || []).map(b => '<button class="btn mini p" data-a="' + b[1] + '"' + (b[2] ? ' data-id="' + esc(b[2]) + '"' : '') + '>' + esc(b[0]) + '</button>').join('') +
+    (!vue && !x.fixe ? '<button class="btn mini" data-a="notifVu" data-k="' + esc(x.k) + '">Vu</button>' : '') + '</div></div>';
+}
+function panneau() {
+  const L = alertes(), vu = lireVu(), nv = nonVues(L, vu), vues = L.filter(x => nv.indexOf(x) < 0);
+  ouvrir('Notifications', (nv.length ? nv.map(x => carteNotif(x)).join('') + (nv.filter(x => !x.fixe).length > 1 ? '<button class="btn f large" style="margin-top:4px" data-a="notifTout">Tout marquer comme vu</button>' : '')
+    : '<div class="carte">' + vide('Rien de nouveau', L.length ? 'Vous avez tout vu.' : 'Tout va bien : pas de rupture, pas de retard, rien en attente.') + '</div>') +
+    (vues.length ? '<details style="margin-top:14px"><summary class="petit doux">Déjà vues (' + vues.length + ')</summary><div style="margin-top:8px">' + vues.map(x => carteNotif(x, 1)).join('') + '</div></details>' : '') +
+    '<p class="petit doux" style="margin-top:12px">Une alerte marquée « Vu » revient si la situation change (nouvel article en rupture, nouveau retard…).</p>');
+}
+A.notifs = () => panneau();
+A.notifVu = d => { const L = alertes(), x = L.find(y => y.k === d.k), vu = lireVu(); if (x) { vu[x.k] = x.sig; ecrireVu(vu); } panneau(); majCloche(); };
+A.notifTout = () => { const vu = lireVu(); alertes().forEach(x => { if (!x.fixe) vu[x.k] = x.sig; }); ecrireVu(vu); panneau(); majCloche(); };
+A.notifStock = () => { fermer(); S.f.stab = 'alertes'; aller('stock'); };
+A.notifFour = () => { fermer(); S.f.ttab = 'fournisseur'; aller('tiers'); };
+A.notifCopie = () => { fermer(); aller('reglages'); setTimeout(() => { const t = [...document.querySelectorAll('h2,h3,.sect b')].find(h => /Copie de sécurité/.test(h.textContent)); if (t) t.scrollIntoView({ block: 'start' }); }, 50); };
+}
