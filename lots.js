@@ -129,3 +129,17 @@ V.reglages = function () {
     '<label class="coche" style="margin:12px 0 0"><input type="checkbox" data-ch="optLot"' + (C.db.meta.opt.choixLot ? ' checked' : '') + '><span>À la caisse, permettre de choisir l’arrivage (lundi, vendredi…) d’où sort l’article</span></label>');
 };
 CH.optLot = (v, el) => { C.db.meta.opt.choixLot = el.checked; sauver(); toast(el.checked ? 'Choix de l’arrivage activé à la caisse' : 'Choix de l’arrivage désactivé'); };
+
+/* ---------- option : un trait entre chaque article sur la facture (2.7.1) ---------- */
+{
+const majTraits = () => document.body.classList.toggle('traits-fact', !!(C.db && C.db.meta.opt && C.db.meta.opt.traitsFact));
+const ouvrirTraitsBase = ouvrir;
+ouvrir = function (t, h) { majTraits(); return ouvrirTraitsBase(t, h); };
+const reglagesTraitsBase = V.reglages;
+V.reglages = function () {
+  const h = reglagesTraitsBase(), k = '<span>Autoriser la caisse à modifier le prix de vente</span></label>';
+  const o = '<label class="coche" style="margin:12px 0 0"><input type="checkbox" data-ch="optTraits"' + (C.db.meta.opt.traitsFact ? ' checked' : '') + '><span>Sur les factures, tracer un trait entre chaque article</span></label>';
+  return h.includes(k) ? h.replace(k, k + o) : h;
+};
+CH.optTraits = (v, el) => { C.db.meta.opt.traitsFact = el.checked; sauver(); majTraits(); toast(el.checked ? 'Les factures auront un trait entre chaque article' : 'Factures sans trait entre les articles'); };
+}

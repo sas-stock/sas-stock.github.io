@@ -176,12 +176,13 @@ function pdfFacture(v) {
   const fin = () => { xs.forEach((x, i) => { if (i) trait(x, haut, x, y); }); trait(mg, haut, mg, y); trait(mg + LT, haut, mg + LT, y); trait(mg, y, mg + LT, y); };
   const cel = (s, i, yy) => { const k = cols[i]; if (k[2] === 'c') txt(s, xs[i] + k[0] / 2, yy, 9, 0, 'c'); else if (k[2] === 'd') txt(s, xs[i] + k[0] - 5, yy, 9, 0, 'd'); else txt(s, xs[i] + 5, yy, 9); };
   entete();
+  const traits = !!(C.db.meta.opt && C.db.meta.opt.traitsFact);
   v.lignes.forEach(l => {
     const a = C.article(l.articleId) || {}, T = couper(l.nom, 9, cols[0][0] - 10), h = 7 + T.length * 11;
     if (y - h < bas) { fin(); page(); entete(); }
     T.forEach((t, k) => txt(t, xs[0] + 5, y - 12 - k * 11, 9));
     cel(F(l.qte), 1, y - 12); cel(a.unite || 'pièce', 2, y - 12); cel(M(l.pu), 3, y - 12); cel(M(l.qte * l.pu), 4, y - 12);
-    y -= h;
+    y -= h; if (traits) trait(mg, y, mg + LT, y, 0.5);
   });
   if (v.lignes.length < 8) y -= 60;
   fin();
