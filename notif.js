@@ -59,7 +59,31 @@ function alertes() {
       L.push({ k: 'copie', sig: String(Math.floor(now / (30 * J))), n: 'info', t: sv ? 'Dernière copie de sécurité il y a ' + Math.floor((now - sv) / J) + ' jours' : 'Aucune copie de sécurité dans un fichier',
         s: 'Vos données sont en ligne, mais une copie dans un fichier (WhatsApp, clé USB) protège en plus.', b: [['Faire une copie', 'notifCopie']] });
   }
+  const nv = alerteNouveautes(lireVu()); if (nv) L.unshift(nv);
   return L;
+}
+/* ---------- nouveautés de chaque mise à jour ---------- */
+const NOUVEAUTES = [
+  { v: '2.9.1', l: ['Les tarifs des abonnements sont affichés dans Réglages > Compte et licence : touchez une formule pour la demander sur WhatsApp.', 'Nouvelle unité « rouleau » pour vos articles.', 'Cette fenêtre vous annonce maintenant chaque nouveauté.'] },
+  { v: '2.9.0', l: ['La cloche en haut de l’écran regroupe les alertes : ruptures, stocks bas, clients en retard de paiement, factures en attente, licence…'] },
+  { v: '2.8.0', l: ['Inventaires (Stock > Inventaires) : comptez le stock réel, l’application calcule les écarts et corrige le stock en une fois, avec un rapport imprimable.'] },
+  { v: '2.7.1', l: ['Option « trait entre chaque article » sur les factures (Réglages > Règles de vente).'] },
+  { v: '2.7.0', l: ['Arrivages (Stock > Arrivages) : retrouvez chaque livraison (celle du lundi, celle du vendredi…) et ce qu’il en reste.'] }
+];
+const cmpV = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); } return 0; };
+function versionDepart() {
+  // première ouverture de cette version sur l'appareil : une boutique créée aujourd'hui ne voit pas l'historique ;
+  // une boutique plus ancienne découvre les nouveautés depuis la 2.7.0
+  const k = 'sasVersionDepart:' + (typeof compte !== 'undefined' && compte ? compte.uid : 'local');
+  let d = null; try { d = localStorage.getItem(k); } catch (e) {}
+  if (!d) { d = C.db && C.db.meta && C.db.meta.cree && Date.now() - C.db.meta.cree > J ? '2.6.1' : VERSION; try { localStorage.setItem(k, d); } catch (e) {} }
+  return d;
+}
+function alerteNouveautes(vu) {
+  const depuis = [versionDepart(), vu.maj || '0'].sort(cmpV).pop();
+  const N = NOUVEAUTES.filter(x => cmpV(x.v, depuis) > 0 && cmpV(x.v, VERSION) <= 0);
+  if (!N.length) return null;
+  return { k: 'maj', sig: N[0].v, n: 'info', t: N.length === 1 ? 'Nouveau dans la version ' + N[0].v : 'Nouveautés depuis votre dernière mise à jour', items: N.reduce((r, x) => r.concat(x.l.map(t => (N.length > 1 ? x.v + ' : ' : '') + t)), []) };
 }
 const nonVues = (L, vu) => L.filter(x => x.fixe || vu[x.k] !== x.sig);
 
@@ -76,6 +100,7 @@ if (typeof majAttente === 'function') { const majAttenteNotifBase = majAttente; 
 /* ---------- le panneau ---------- */
 function carteNotif(x, vue) {
   return '<div class="carte notif ' + x.n + (vue ? ' vue' : '') + '"><div class="nt"><b>' + esc(x.t) + '</b>' + (x.s ? '<span>' + esc(x.s) + '</span>' : '') + '</div>' +
+    (x.items ? '<ul class="majl">' + x.items.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' : '') +
     (x.liste ? '<div class="liste" style="margin-top:8px">' + x.liste.map(l => '<button class="ligne" data-a="' + l[0] + '" data-id="' + esc(l[1]) + '"><div class="f"><b>' + esc(l[2]) + '</b></div><div class="d"><span>' + esc(l[3]) + '</span></div></button>').join('') + '</div>' : '') +
     '<div class="rangee nb">' + (x.b || []).map(b => '<button class="btn mini p" data-a="' + b[1] + '"' + (b[2] ? ' data-id="' + esc(b[2]) + '"' : '') + '>' + esc(b[0]) + '</button>').join('') +
     (!vue && !x.fixe ? '<button class="btn mini" data-a="notifVu" data-k="' + esc(x.k) + '">Vu</button>' : '') + '</div></div>';
