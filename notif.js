@@ -64,6 +64,7 @@ function alertes() {
 }
 /* ---------- nouveautés de chaque mise à jour ---------- */
 const NOUVEAUTES = [
+  { v: '2.9.3', l: ['Réglages > Installer l’application : téléchargez SAS STOCK pour Android ou ordinateur, ou copiez le lien pour un autre appareil.'] },
   { v: '2.9.2', l: ['SAS STOCK a sa propre adresse : sas-stock.com.', 'L’application s’installe sur téléphone Android et sur ordinateur depuis sas-stock.com/telecharger.html.'] },
   { v: '2.9.1', l: ['Les tarifs des abonnements sont affichés dans Réglages > Compte et licence : touchez une formule pour la demander sur WhatsApp.', 'Nouvelle unité « rouleau » pour vos articles.', 'Cette fenêtre vous annonce maintenant chaque nouveauté.'] },
   { v: '2.9.0', l: ['La cloche en haut de l’écran regroupe les alertes : ruptures, stocks bas, clients en retard de paiement, factures en attente, licence…'] },

@@ -45,3 +45,17 @@ modaleLicence = function () {
 };
 A.licence = () => modaleLicence();
 }
+
+/* Réglages > Installer l'application (2.9.3) : lien vers la page de téléchargement Android / ordinateur */
+{
+const LIEN_DL = 'https://sas-stock.com/telecharger.html';
+const reglagesDlBase = V.reglages;
+V.reglages = function () {
+  const h = reglagesDlBase();
+  if (!admin()) return h;
+  return h + '<div class="bloc"><div class="rangee" style="justify-content:space-between;margin:18px 2px 8px"><h2>Installer l’application</h2></div><div class="carte">' +
+    '<p class="petit doux" style="margin-bottom:10px">Installez SAS STOCK sur un téléphone Android ou un ordinateur : il s’ouvre depuis une icône, même sans internet. Pour un autre appareil, envoyez-lui ce lien.</p>' +
+    '<div class="rangee"><a class="btn p f" style="justify-content:center;text-align:center;text-decoration:none" href="telecharger.html" target="_blank" rel="noopener">Télécharger l’application</a><button class="btn f" data-a="copierLienDl">Copier le lien</button></div></div></div>';
+};
+A.copierLienDl = () => { try { navigator.clipboard.writeText(LIEN_DL).then(() => toast('Lien copié : ' + LIEN_DL), () => toast(LIEN_DL)); } catch (e) { toast(LIEN_DL); } };
+}
