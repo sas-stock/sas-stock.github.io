@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10261F">
+<title>Télécharger SAS STOCK – Android et ordinateur</title>
+<meta name="description" content="Installez SAS STOCK, la gestion de stock et de caisse de SAS TECH, sur votre téléphone Android ou votre ordinateur.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#F1F4EF;color:#10261F;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:#10261F;color:#fff;padding:28px 18px 34px}
+.w{max-width:760px;margin:0 auto}
+.marque{display:flex;align-items:center;gap:12px}
+.marque img{width:48px;height:48px;border-radius:12px}
+.marque b{font-size:1.4rem;letter-spacing:-.01em}
+.marque span{display:block;font-size:.85rem;opacity:.75}
+header p{margin:18px 0 0;font-size:1.05rem;max-width:34em;opacity:.92}
+main{padding:0 14px 50px}
+.cartes{display:grid;gap:14px;margin-top:-18px}
+@media(min-width:700px){.cartes{grid-template-columns:1fr 1fr}}
+.carte{background:#fff;border:1px solid #D9E1D9;border-radius:16px;padding:20px}
+.carte h2{margin:0 0 4px;font-size:1.2rem}
+.carte .sous{color:#5A6D64;font-size:.9rem;margin:0 0 16px}
+.btn{display:block;width:100%;text-align:center;background:#0E7A53;color:#fff;border:0;border-radius:12px;padding:14px;font:inherit;font-weight:700;font-size:1.05rem;text-decoration:none;cursor:pointer}
+.btn:hover{background:#0A5C3E}
+.btn[disabled]{background:#9DB3A8;cursor:default}
+.taille{display:block;text-align:center;color:#5A6D64;font-size:.82rem;margin-top:6px}
+ol{margin:16px 0 0;padding-left:20px;font-size:.92rem}
+ol li{margin-bottom:6px}
+.note{background:#FDF1D6;border:1px solid #EDD292;border-radius:10px;padding:10px 12px;font-size:.88rem;margin-top:14px}
+.ok{background:#E3F2EA;border-color:#B9DCC8}
+.web{margin-top:14px;text-align:center;font-size:.95rem}
+.web a{color:#0E7A53;font-weight:700}
+footer{text-align:center;color:#5A6D64;font-size:.85rem;padding:0 14px 30px}
+footer a{color:inherit}
+:focus-visible{outline:3px solid #F2A413;outline-offset:2px}
+</style>
+</head>
+<body>
+<header><div class="w">
+  <div class="marque"><img src="icon-192.png" alt=""><div><b>SAS STOCK</b><span>Stocks et caisses, par SAS TECH</span></div></div>
+  <p>Installez l’application sur votre téléphone et votre ordinateur. Avec le même compte Google, vous retrouvez les mêmes articles, ventes et clients partout.</p>
+</div></header>
+<main><div class="w">
+<div class="cartes">
+
+  <section class="carte">
+    <h2>Téléphone Android</h2>
+    <p class="sous">Application à installer, fonctionne aussi sans internet.</p>
+    <a class="btn" href="SAS-STOCK.apk" download>Télécharger l’application</a>
+    <span class="taille">Fichier SAS-STOCK.apk</span>
+    <ol>
+      <li>Ouvrez le fichier téléchargé.</li>
+      <li>Si le téléphone le demande, autorisez l’installation depuis cette source, puis revenez en arrière.</li>
+      <li>Appuyez sur <b>Installer</b>, puis ouvrez <b>SAS STOCK</b>.</li>
+    </ol>
+  </section>
+
+  <section class="carte">
+    <h2>Ordinateur</h2>
+    <p class="sous">Windows, Mac ou Linux, avec Google Chrome ou Microsoft Edge.</p>
+    <button class="btn" id="pc" type="button">Installer sur cet ordinateur</button>
+    <span class="taille" id="pcInfo">Une icône SAS STOCK est ajoutée au bureau et au menu Démarrer.</span>
+    <div class="note" id="pcAide" hidden>
+      <b>Installation manuelle :</b> dans Chrome ou Edge, cliquez sur l’icône d’installation à droite de la barre d’adresse (un écran avec une flèche), ou ouvrez le menu ⋮ puis <b>Installer SAS STOCK</b> (dans Edge : <b>Applications</b>, puis <b>Installer ce site en tant qu’application</b>).
+    </div>
+    <div class="note ok" id="pcOk" hidden>SAS STOCK est installé sur cet ordinateur. Ouvrez-le depuis le bureau ou le menu Démarrer.</div>
+  </section>
+
+</div>
+<p class="web">Sur iPhone ou sans installer : <a href="./">ouvrir SAS STOCK dans le navigateur</a>.</p>
+</div></main>
+<footer>Licence, aide ou renouvellement : SAS TECH, <a href="https://wa.me/2250748671334">07 48 67 13 34</a></footer>
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+var invite = null, b = document.getElementById('pc');
+function aide() { document.getElementById('pcAide').hidden = false; }
+function fait() { b.hidden = true; document.getElementById('pcInfo').hidden = true; document.getElementById('pcAide').hidden = true; document.getElementById('pcOk').hidden = false; }
+if (window.matchMedia('(display-mode: standalone)').matches) fait();
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); invite = e; });
+window.addEventListener('appinstalled', fait);
+b.addEventListener('click', function () {
+  if (!invite) { aide(); return; }
+  invite.prompt();
+  invite.userChoice.then(function (c) { if (c.outcome === 'accepted') fait(); invite = null; });
+});
+</script>
+</body>
+</html>
