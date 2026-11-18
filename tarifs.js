@@ -59,3 +59,26 @@ V.reglages = function () {
 };
 A.copierLienDl = () => { try { navigator.clipboard.writeText(LIEN_DL).then(() => toast('Lien copié : ' + LIEN_DL), () => toast(LIEN_DL)); } catch (e) { toast(LIEN_DL); } };
 }
+
+/* Présentation pour un visiteur qui découvre le site (2.9.4) : écran de connexion seulement */
+{
+const FONCTIONS = [
+  ['Caisse rapide', 'Ventes en quelques touches, monnaie à rendre, reçus et factures à imprimer ou envoyer.'],
+  ['Stock en temps réel', 'Chaque vente et chaque achat mettent le stock à jour. Alertes de rupture et de stock bas.'],
+  ['Crédits et dettes', 'Ce que chaque client vous doit, ce que vous devez aux fournisseurs, règlements et relances.'],
+  ['Bénéfice et rapports', 'Point de caisse du jour, bénéfice, articles les plus vendus, impayés.'],
+  ['Inventaires et dépôts', 'Comptage du stock réel, écarts corrigés en une fois, plusieurs dépôts ou magasins.'],
+  ['Employés contrôlés', 'Un code secret par employé. La caisse ne voit ni les prix d’achat ni les bénéfices.']
+];
+const vueActivationPres = vueActivation;
+vueActivation = function () {
+  const h = vueActivationPres();
+  if (etat.raison !== 'compte') return h;
+  const tete = '<h1 class="pres-t">Gérez le stock et la caisse de votre boutique</h1><p class="pres-s">Sur téléphone et ordinateur, même sans internet. Vos données sont sauvegardées en ligne et identiques sur tous vos appareils.</p>';
+  const corps = '<div class="pres"><p class="pres-h">Ce que fait SAS STOCK</p><div class="pres-g">' + FONCTIONS.map(f => '<div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div>').join('') + '</div>' +
+    '<p class="pres-h">Pour commencer</p><ol class="pres-e"><li>Touchez <b>Continuer avec Google</b> avec le compte de votre boutique.</li><li>Choisissez une formule ci-dessous et envoyez-la sur WhatsApp à ' + esc(REVENDEUR.nom) + '.</li><li>Dès que votre licence est activée, l’application s’ouvre : créez votre boutique et commencez à vendre.</li></ol></div>';
+  let r = h.replace('<p class="ex">Connectez-vous avec le compte Google de votre boutique. Vos données seront les mêmes sur votre téléphone et votre ordinateur.</p>', tete + '<p class="ex">Nouveau client ou déjà client : connectez-vous avec le compte Google de votre boutique.</p>');
+  const i = r.indexOf('<div class="tarifs');
+  return i >= 0 ? r.slice(0, i) + corps + r.slice(i) : r;
+};
+}
