@@ -1,6 +1,6 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.9.4', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre', 'rouleau'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.9.5', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre', 'rouleau'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
 const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
@@ -215,7 +215,13 @@ function ligneVente(v) {
 }
 
 /* ---------- caisse ---------- */
-const depotVente = () => C.db.depots[0];
+const cleDepotV = () => 'sasDepotV:' + (typeof compte !== 'undefined' && compte ? compte.uid : '');
+const depotVente = () => {
+  if (S.panier && S.panier.remplace) { const v = C.par(C.db.ventes, S.panier.remplace); if (v && C.depot(v.depotId)) return C.depot(v.depotId); } // une correction reste dans le dépôt de la vente
+  if (S.depotV === undefined) { try { S.depotV = localStorage.getItem(cleDepotV()) || ''; } catch (e) { S.depotV = ''; } }
+  return C.depot(S.depotV) || C.db.depots[0];
+};
+const stockAilleurs = (a, dv) => C.db.depots.filter(d => d.id !== dv.id && C.qte(a.id, d.id) > 0).map(d => d.nom + ' : ' + F(C.qte(a.id, d.id))).join(', ');
 function chercheArticles(q, limite) {
   q = sansAccent(q).trim(); if (!q) return [];
   const mots = q.split(/\s+/);

@@ -25,10 +25,12 @@ V.caisse = function () {
   const clients = C.db.tiers.filter(t => t.type === 'client').sort((a, b) => a.nom.localeCompare(b.nom));
   const scan = scanDispo() ? '<button class="scan" data-a="scanner" aria-label="Scanner un code-barres">' + IC_SCAN + '</button>' : '';
   return (p.remplace ? '<div class="bandeau" style="border-radius:12px;margin-bottom:10px"><span>Correction de la facture <b>' + esc(p.remplaceNum) + '</b> : modifiez ce qui est faux, puis validez.</span><button data-a="pAbandon">Abandonner</button></div>' : '') +
-    '<div class="titre"><h1>Caisse</h1>' + (p.lignes.length ? '<button class="btn mini d" data-a="pVider">Vider le panier</button>' : '') + '</div><div class="caisse2"><div>' +
+    '<div class="titre"><h1>Caisse</h1>' + (p.lignes.length ? '<button class="btn mini d" data-a="pVider">Vider le panier</button>' : '') + '</div>' +
+    (C.db.depots.length > 1 ? '<label class="ch depv"><span>Vendre depuis le dépôt</span><select data-ch="pDepot"' + (p.remplace ? ' disabled' : '') + '>' + C.db.depots.map(d => '<option value="' + d.id + '"' + (d.id === dv.id ? ' selected' : '') + '>' + esc(d.nom) + '</option>').join('') + '</select></label>' : '') +
+    '<div class="caisse2"><div>' +
     (p.lignes.length ? '<div class="liste panier" style="margin-bottom:10px">' + p.lignes.map((l, i) => { const a = l.libre ? { nom: l.nom } : C.article(l.articleId);
       return '<div class="pl" data-i="' + i + '"><div class="nm"><span>' + esc(a.nom) + '</span><span class="n" data-lt>' + M(l.qte > 0 && l.pu >= 0 ? l.qte * l.pu : 0) + '</span></div>' +
-        '<span class="st">' + (l.libre ? 'Hors stock' : 'En stock : ' + F(stockVisible(a, dv, p))) + '</span>' +
+        '<span class="st">' + (l.libre ? 'Hors stock' : 'En stock : ' + F(stockVisible(a, dv, p)) + (stockVisible(a, dv, p) < l.qte && stockAilleurs(a, dv) ? ' · ailleurs : ' + esc(stockAilleurs(a, dv)) : '')) + '</span>' +
         '<div class="qg"><button data-a="pMoins" aria-label="Enlever 1 ' + esc(a.nom) + '">−</button><input inputmode="decimal" data-in="pq" value="' + (isNaN(l.qte) ? '' : l.qte) + '" aria-label="Quantité de ' + esc(a.nom) + '"><button data-a="pPlus" aria-label="Ajouter 1 ' + esc(a.nom) + '">+</button></div>' +
         '<input inputmode="numeric" data-in="pp" value="' + (isNaN(l.pu) ? '' : l.pu) + '" aria-label="Prix unitaire de ' + esc(a.nom) + '"' + (l.libre ? ' placeholder="Prix"' : '') + (libre || l.libre ? '' : ' readonly') + '>' +
         '<button class="x" data-a="pRetire" aria-label="Retirer ' + esc(a.nom) + '">×</button></div>'; }).join('') + '</div>' : '') +
@@ -49,10 +51,11 @@ majRes = function () {
   const q = r.value, L = chercheArticles(q), dv = depotVente();
   if (!q.trim()) { box.innerHTML = blocFavoris(); return; }
   box.innerHTML = '<div class="liste">' + L.map(a => { const s = stockVisible(a, dv, S.panier);
-    return '<button class="ligne" data-a="pAjoute" data-id="' + a.id + '"><div class="f"><b>' + esc(a.nom) + '</b><span>' + esc(a.code || '') + ' En stock : ' + F(s) + ' ' + etiqStock(a, s) + '</span></div><div class="d"><b class="n">' + M(a.pv) + '</b></div></button>'; }).join('') +
+    return '<button class="ligne" data-a="pAjoute" data-id="' + a.id + '"><div class="f"><b>' + esc(a.nom) + '</b><span>' + esc(a.code || '') + ' En stock : ' + F(s) + ' ' + etiqStock(a, s) + (stockAilleurs(a, dv) ? ' <span class="aill">· ' + esc(stockAilleurs(a, dv)) + '</span>' : '') + '</span></div><div class="d"><b class="n">' + M(a.pv) + '</b></div></button>'; }).join('') +
     '<button class="ligne" data-a="pLibre"><div class="f"><b>Ajouter « ' + esc(q.trim()) + ' » (hors stock)</b><span>Saisir la quantité et le prix</span></div><div class="d"><b class="n">+</b></div></button></div>';
 };
 I.rech = () => majRes();
+CH.pDepot = v => { S.depotV = v; try { localStorage.setItem(cleDepotV(), v); } catch (e) {} rendre(); toast('Ventes depuis : ' + C.depot(v).nom); };
 A.pAjoute = (d, el) => {
   const a = C.article(d.id); if (!a) return;
   const p = S.panier, l = p.lignes.find(x => x.articleId === d.id && !x.libre);

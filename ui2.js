@@ -238,8 +238,11 @@ const A = {
   ficheArticle: d => ficheArticle(d.id), formArticle: d => { if (admin()) formArticle(d.id, d.pour); }, histoArticle: d => ouvrir('Historique : ' + C.article(d.id).nom, listeMouvements(d.id)),
   retirerArticle: d => confirmer('Retirer l’article', 'L’article disparaît des listes et de la caisse. Son historique reste dans les rapports.', 'Retirer', () => { C.article(d.id).actif = false; sauver(); rendre(); toast('Article retiré'); }, true),
   formTransfert: d => { const ops = C.db.depots.map(x => [x.id, x.nom + ' (' + F(C.qte(d.id, x.id)) + ')']);
-    formulaire('Transférer ' + C.article(d.id).nom, [{ n: 'de', l: 'Depuis', t: 'select', opts: ops, v: (C.db.depots.find(x => C.qte(d.id, x.id) > 0) || C.db.depots[0]).id }, { n: 'vers', l: 'Vers', t: 'select', opts: ops, v: C.db.depots[0].id }, { n: 'qte', l: 'Quantité', t: 'nombre', req: 1 }],
-      v => { C.transferer(d.id, v.de, v.vers, num(v.qte), S.user.id); toast('Transfert enregistré'); }, { ok: 'Transférer' }); },
+    const de = (C.db.depots.find(x => C.qte(d.id, x.id) > 0) || C.db.depots[0]).id, autre = id => (C.db.depots.find(x => x.id !== id) || C.db.depots[0]).id;
+    formulaire('Transférer ' + C.article(d.id).nom, [{ n: 'de', l: 'Depuis', t: 'select', opts: ops, v: de }, { n: 'vers', l: 'Vers', t: 'select', opts: ops, v: autre(de) }, { n: 'qte', l: 'Quantité', t: 'nombre', req: 1 }],
+      v => { C.transferer(d.id, v.de, v.vers, num(v.qte), S.user.id); toast('Transfert enregistré : ' + F(num(v.qte)) + ' vers ' + C.depot(v.vers).nom); }, { ok: 'Transférer' });
+    const sDe = $('#modale [name=de]'), sVers = $('#modale [name=vers]');
+    if (sDe && sVers) { sDe.addEventListener('change', () => { if (sVers.value === sDe.value) sVers.value = autre(sDe.value); }); sVers.addEventListener('change', () => { if (sVers.value === sDe.value) sDe.value = autre(sVers.value); }); } },
   formAjuster: d => { const ops = C.db.depots.map(x => [x.id, x.nom + ' (' + F(C.qte(d.id, x.id)) + ')']);
     formulaire('Corriger le stock', [{ t: 'texte', l: 'Comptez l’article dans le dépôt et saisissez la quantité réelle.' }, { n: 'depot', l: 'Dépôt', t: 'select', opts: ops }, { n: 'qte', l: 'Quantité comptée', t: 'nombre', req: 1 }, { n: 'motif', l: 'Motif', v: 'Inventaire' }],
       v => { C.ajuster(d.id, v.depot, num(v.qte), v.motif.trim(), S.user.id); toast('Stock corrigé'); }); },

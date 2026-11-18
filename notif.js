@@ -64,6 +64,7 @@ function alertes() {
 }
 /* ---------- nouveautés de chaque mise à jour ---------- */
 const NOUVEAUTES = [
+  { v: '2.9.5', l: ['Caisse : choisissez le dépôt d’où vous vendez (« Vendre depuis le dépôt »). Le choix est gardé sur l’appareil.', 'La recherche de la caisse montre aussi le stock des autres dépôts.', 'Transfert entre dépôts : le dépôt d’arrivée ne peut plus être le même que celui de départ.'] },
   { v: '2.9.3', l: ['Réglages > Installer l’application : téléchargez SAS STOCK pour Android ou ordinateur, ou copiez le lien pour un autre appareil.'] },
   { v: '2.9.2', l: ['SAS STOCK a sa propre adresse : sas-stock.com.', 'L’application s’installe sur téléphone Android et sur ordinateur depuis sas-stock.com/telecharger.html.'] },
   { v: '2.9.1', l: ['Les tarifs des abonnements sont affichés dans Réglages > Compte et licence : touchez une formule pour la demander sur WhatsApp.', 'Nouvelle unité « rouleau » pour vos articles.', 'Cette fenêtre vous annonce maintenant chaque nouveauté.'] },
