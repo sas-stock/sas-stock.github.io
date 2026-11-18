@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.sastech.sasstock",
+        "sha256_cert_fingerprints": ["40:01:1A:75:7B:3A:E3:27:26:2B:75:73:2F:1C:0D:AD:AC:67:54:B1:02:5C:2C:22:5E:99:03:39:4E:30:2C:E4"]
+      }
+    }]
