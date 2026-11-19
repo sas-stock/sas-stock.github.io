@@ -1,5 +1,5 @@
 /* SAS STOCK — fonctionnement hors ligne. Changer VERSION à chaque mise à jour. */
-const VERSION = 'sas-stock-2.9.5';
+const VERSION = 'sas-stock-2.9.6';
 const FICHIERS = ['./', 'index.html', 'lic.js', 'core.js', 'ui.js', 'ui2.js', 'ui3.js', 'fb.js', 'facture.js', 'plus.js', 'lots.js', 'inventaire.js', 'notif.js', 'tarifs.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable.png'];
 self.addEventListener('install', e => e.waitUntil(caches.open(VERSION).then(c => c.addAll(FICHIERS.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())));

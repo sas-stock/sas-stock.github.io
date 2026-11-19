@@ -12,8 +12,10 @@ const ecrireVu = o => { try { localStorage.setItem(cleVu(), JSON.stringify(o)); 
 // date de la plus ancienne vente à crédit encore impayée (les règlements soldent d'abord les plus anciennes)
 function plusVieuxCredit(tid) {
   let regle = C.db.reglements.filter(r => r.tiersId === tid).reduce((s, r) => s + r.montant, 0);
-  const V = C.db.ventes.filter(v => !v.annule && v.clientId === tid && v.total - v.paye > 0).sort((a, b) => a.date - b.date);
-  for (const v of V) { const du = v.total - v.paye; if (regle >= du) { regle -= du; continue; } return v.date; }
+  const t = C.tiers(tid);
+  const V = C.db.ventes.filter(v => !v.annule && v.clientId === tid && v.total - v.paye > 0).map(v => ({ date: v.date, du: v.total - v.paye }))
+    .concat(((t && t.dettes) || []).map(d => ({ date: d.date, du: d.montant }))).sort((a, b) => a.date - b.date);
+  for (const v of V) { const du = v.du; if (regle >= du) { regle -= du; continue; } return v.date; }
   return null;
 }
 
@@ -64,6 +66,7 @@ function alertes() {
 }
 /* ---------- nouveautés de chaque mise à jour ---------- */
 const NOUVEAUTES = [
+  { v: '2.9.6', l: ['Clients et fournisseurs : indiquez une somme déjà due à la création, ou ajoutez-la plus tard depuis la fiche (« Ajouter une somme due »).'] },
   { v: '2.9.5', l: ['Caisse : choisissez le dépôt d’où vous vendez (« Vendre depuis le dépôt »). Le choix est gardé sur l’appareil.', 'La recherche de la caisse montre aussi le stock des autres dépôts.', 'Transfert entre dépôts : le dépôt d’arrivée ne peut plus être le même que celui de départ.'] },
   { v: '2.9.3', l: ['Réglages > Installer l’application : téléchargez SAS STOCK pour Android ou ordinateur, ou copiez le lien pour un autre appareil.'] },
   { v: '2.9.2', l: ['SAS STOCK a sa propre adresse : sas-stock.com.', 'L’application s’installe sur téléphone Android et sur ordinateur depuis sas-stock.com/telecharger.html.'] },

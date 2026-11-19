@@ -140,6 +140,7 @@
     var t = C.tiers(tid), s = 0; if (!t) return 0;
     if (t.type === 'client') C.db.ventes.forEach(function (v) { if (!v.annule && v.clientId === tid) s += v.total - v.paye; });
     else C.db.achats.forEach(function (a) { if (!a.annule && a.fournisseurId === tid) s += a.total - a.paye; });
+    (t.dettes || []).forEach(function (d) { s += d.montant; }); // sommes dues ajoutées à la main (dette d'avant, solde de départ…)
     C.db.reglements.forEach(function (r) { if (r.tiersId === tid) s -= r.montant; });
     return s;
   };
@@ -152,6 +153,20 @@
     var r = { id: C.uid(), num: C.numero('R'), date: Date.now(), userId: o.userId, tiersId: t.id, type: t.type, montant: o.montant, mode: o.mode || 'Espèces', note: o.note || '', resteApres: du - o.montant };
     C.db.reglements.push(r);
     return r;
+  };
+  C.ajouterDette = function (o) {
+    var t = C.tiers(o.tiersId);
+    if (!t) throw err('Tiers introuvable.');
+    if (!(o.montant > 0)) throw err('Indiquez un montant.');
+    var d = { id: C.uid(), date: o.date || Date.now(), montant: o.montant, note: o.note || '', userId: o.userId };
+    t.dettes = (t.dettes || []).concat([d]);
+    return d;
+  };
+  C.retirerDette = function (tid, did) {
+    var t = C.tiers(tid), d = t && (t.dettes || []).find(function (x) { return x.id === did; });
+    if (!d) throw err('Somme introuvable.');
+    if (C.solde(tid) - d.montant < 0) throw err('Impossible : des règlements ont déjà été enregistrés sur cette somme.');
+    t.dettes = t.dettes.filter(function (x) { return x.id !== did; });
   };
   C.depenser = function (o) {
     if (!o.libelle) throw err('Indiquez le motif de la dépense.');

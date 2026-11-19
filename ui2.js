@@ -93,18 +93,23 @@ function ficheTiers(id) {
   const t = C.tiers(id), cli = t.type === 'client', du = C.solde(id);
   const ops = (cli ? C.db.ventes.filter(v => v.clientId === id && !v.annule).map(v => ({ d: v.date, l: 'Vente ' + v.num, m: v.total, s: v.total > v.paye ? 'dont crédit ' + M(v.total - v.paye) : 'payée', a: 'detailVente', id: v.id }))
     : C.db.achats.filter(a => a.fournisseurId === id && !a.annule).map(a => ({ d: a.date, l: 'Achat ' + a.num, m: a.total, s: a.total > a.paye ? 'reste ' + M(a.total - a.paye) : 'payé', a: 'detailAchat', id: a.id })))
-    .concat(C.db.reglements.filter(r => r.tiersId === id).map(r => ({ d: r.date, l: 'Règlement ' + r.num, m: r.montant, s: r.mode, a: 'ticketRecu', id: r.id, r: 1 }))).sort((a, b) => b.d - a.d).slice(0, 40);
+    .concat(C.db.reglements.filter(r => r.tiersId === id).map(r => ({ d: r.date, l: 'Règlement ' + r.num, m: r.montant, s: r.mode, a: 'ticketRecu', id: r.id, r: 1 })))
+    .concat((t.dettes || []).map(x => ({ d: x.date, l: 'Somme due ajoutée', m: x.montant, s: x.note || 'sans motif', a: 'detailDette', id: id + '|' + x.id }))).sort((a, b) => b.d - a.d).slice(0, 40);
   ouvrir(t.nom, '<div class="chiffre fort" style="margin-bottom:12px"><span>' + (cli ? 'Ce client nous doit' : 'Nous devons à ce fournisseur') + '</span><b class="n">' + M(Math.max(0, du)) + '</b><span>' + esc(t.tel || '') + '</span></div>' +
-    '<div class="rangee">' + (du > 0 ? '<button class="btn p f" data-a="formReglement" data-id="' + id + '">' + (cli ? 'Encaisser un paiement' : 'Payer le fournisseur') + '</button>' : '') + '<button class="btn f" data-a="formTiers" data-id="' + id + '">Modifier</button></div>' +
+    '<div class="rangee btns">' + (du > 0 ? '<button class="btn p f" data-a="formReglement" data-id="' + id + '">' + (cli ? 'Encaisser un paiement' : 'Payer le fournisseur') + '</button>' : '') + '<button class="btn f" data-a="formTiers" data-id="' + id + '">Modifier</button>' + (admin() ? '<button class="btn f" data-a="formDette" data-id="' + id + '">Ajouter une somme due</button>' : '') + '</div>' +
     '<div class="bloc"><h2>Historique</h2>' + (ops.length ? '<div class="liste">' + ops.map(o => '<button class="ligne" data-a="' + o.a + '" data-id="' + o.id + '"><div class="f"><b>' + esc(o.l) + '</b><span>' + esc(dh(o.d) + ', ' + o.s) + '</span></div><div class="d"><b class="n' + (o.r ? ' vert' : '') + '">' + M(o.m) + '</b></div></button>').join('') + '</div>' : '<div class="carte">' + vide('Aucune opération', '') + '</div>') + '</div>');
 }
 function formTiers(id, type, pour) {
   const t = id ? C.tiers(id) : { type };
-  formulaire(id ? 'Modifier' : t.type === 'client' ? 'Nouveau client' : 'Nouveau fournisseur', [{ n: 'nom', l: 'Nom', v: t.nom, req: 1 }, { n: 'tel', l: 'Téléphone', t: 'tel', v: t.tel }], v => {
+  const champs = [{ n: 'nom', l: 'Nom', v: t.nom, req: 1 }, { n: 'tel', l: 'Téléphone', t: 'tel', v: t.tel }];
+  if (!id && admin()) champs.push({ n: 'dette', l: t.type === 'client' ? 'Ce client nous doit déjà (facultatif)' : 'Nous devons déjà à ce fournisseur (facultatif)', t: 'nombre' });
+  formulaire(id ? 'Modifier' : t.type === 'client' ? 'Nouveau client' : 'Nouveau fournisseur', champs, v => {
     const nom = v.nom.trim(); if (!nom) throw new Error('Indiquez le nom.');
     if (C.db.tiers.some(x => x.id !== id && x.type === t.type && x.nom.toLowerCase() === nom.toLowerCase())) throw new Error('Ce nom existe déjà.');
     if (id) { t.nom = nom; t.tel = v.tel.trim(); return () => ficheTiers(id); }
+    const dette = v.dette ? num(v.dette) : 0; if (v.dette && !(dette >= 0)) throw new Error('Montant déjà dû incorrect.');
     const n = { id: C.uid(), type, nom, tel: v.tel.trim() }; C.db.tiers.push(n);
+    if (dette > 0) C.ajouterDette({ tiersId: n.id, montant: dette, note: 'Solde de départ', userId: S.user.id });
     if (pour === 'panier') S.panier.clientId = n.id; if (pour === 'achat') S.ach.fournisseurId = n.id;
     toast(type === 'client' ? 'Client ajouté' : 'Fournisseur ajouté');
   });

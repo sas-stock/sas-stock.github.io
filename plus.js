@@ -438,3 +438,24 @@ const majSyncBase = majSync;
 majSync = function (e) { majSyncBase(e); majAttente(); };
 const sauverBase = sauver;
 sauver = function (tout) { const r = sauverBase(tout); clearTimeout(tAttente); tAttente = setTimeout(majAttente, 250); return r; };
+
+/* ---------- sommes dues ajoutées à la main (2.9.6) ---------- */
+A.formDette = d => {
+  const t = C.tiers(d.id), cli = t.type === 'client';
+  formulaire('Ajouter une somme due', [{ t: 'texte', l: cli ? t.nom + ' nous doit en plus :' : 'Nous devons en plus à ' + t.nom + ' :' }, { n: 'montant', l: 'Montant', t: 'nombre', req: 1 }, { n: 'note', l: 'Motif (facultatif)', ph: 'Ex. dette d’avant SAS STOCK, marchandise prise à crédit…' }], v => {
+    C.ajouterDette({ tiersId: t.id, montant: num(v.montant), note: v.note.trim(), userId: S.user.id });
+    toast('Somme ajoutée : ' + M(num(v.montant))); return () => ficheTiers(t.id);
+  }, { ok: 'Ajouter' });
+};
+A.detailDette = d => {
+  const [tid, did] = d.id.split('|'), t = C.tiers(tid), x = t && (t.dettes || []).find(y => y.id === did); if (!x) return;
+  ouvrir('Somme due ajoutée', '<div class="chiffre fort" style="margin-bottom:12px"><span>' + esc(t.nom) + '</span><b class="n">' + M(x.montant) + '</b><span>' + esc(dh(x.date)) + '</span></div>' +
+    '<div class="carte"><p><b>Motif :</b> ' + esc(x.note || 'sans motif') + '</p><p class="petit doux">Ajoutée par ' + esc(nomU(x.userId)) + '</p></div>' +
+    '<div class="rangee" style="margin-top:12px"><button class="btn f" data-a="ficheTiers" data-id="' + tid + '">Retour</button>' + (admin() ? '<button class="btn d f" data-a="retirerDette" data-id="' + d.id + '">Supprimer (erreur de saisie)</button>' : '') + '</div>');
+};
+A.retirerDette = d => {
+  const [tid, did] = d.id.split('|');
+  confirmer('Supprimer cette somme due', 'Le reste dû sera diminué de ce montant.', 'Supprimer', () => {
+    try { C.retirerDette(tid, did); sauver(); toast('Somme supprimée'); ficheTiers(tid); rendre(); } catch (e) { toast(e.message); }
+  }, true);
+};
