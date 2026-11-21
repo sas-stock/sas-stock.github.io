@@ -171,6 +171,7 @@ A.quitterCompte = () => confirmer('Changer de compte Google', 'Cet appareil sera
 addEventListener('online', () => { majSync(syncEtat); if (!arret) demarrerSync(); pousser(); });
 addEventListener('offline', () => majSync(syncEtat));
 async function demarrer() {
+  if (window.__DEMO && window.demoDemarrer) return window.demoDemarrer(); // demo.html : boutique d'exemple, rien n'est enregistré
   await Store.open();
   lic = (await Store.get('lic')) || {};
   if (!lic.appareil) { lic.appareil = LIC.newDeviceCode(); await Store.set('lic', lic); }
