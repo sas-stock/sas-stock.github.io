@@ -20,6 +20,7 @@ const ECRANS = [
   { i: 'pc-classement', t: 'Le classement : ce qui se vend le mieux, et les articles qui dorment sur vos étagères.' }
 ];
 const QUESTIONS = [
+  ['Comment marche l’essai gratuit ?', 'Vous vous connectez avec le compte Google de votre boutique et vous utilisez SAS STOCK pendant 7 jours, en entier : vos vrais articles, vos vraies ventes, vos vrais clients. Rien à payer, aucune carte bancaire. Au bout de 7 jours, l’application demande votre licence — et tout ce que vous avez saisi pendant l’essai est conservé.'],
   ['Faut-il Internet pour vendre ?', 'Non. Une fois l’application ouverte une première fois sur l’appareil, elle fonctionne sans réseau : vous vendez, vous imprimez, vous consultez votre stock. Dès que la connexion revient, tout part automatiquement vers votre compte.'],
   ['Mes données sont-elles en sécurité ?', 'Elles sont enregistrées sur votre appareil et sur votre compte Google, chez Google (Firebase). Chaque boutique a son espace : personne d’autre ne peut les lire. Vous pouvez en plus enregistrer une copie dans un fichier quand vous voulez, et la restaurer.'],
   ['Puis-je l’utiliser sur plusieurs appareils ?', 'Oui, autant que vous voulez avec le même compte. Une vente faite sur le téléphone de la boutique apparaît sur l’ordinateur du bureau, et l’inverse.'],
@@ -121,8 +122,8 @@ function pageVitrine() {
     '<div class="v-hero"><div class="v-w">' +
       '<h1>Le stock et la caisse de votre boutique, dans votre téléphone</h1>' +
       '<p class="v-s">Vendez, suivez votre stock, sachez qui vous doit de l’argent et combien vous gagnez vraiment. Sur téléphone et sur ordinateur, même quand il n’y a pas de réseau.</p>' +
-      '<div class="v-bs"><a class="v-bt v-p" href="demo.html">Essayer gratuitement</a>' + connexion + '</div>' +
-      '<p class="v-sous">L’essai se fait avec une boutique d’exemple : pas de compte, pas d’engagement. Déjà client ? Connectez-vous avec le compte Google de votre boutique.</p>' +
+      '<div class="v-bs">' + (window.FB ? '<button class="v-bt v-p" data-a="google">Essayer gratuitement 7 jours</button>' : '') + '<a class="v-bt v-l" href="demo.html">Voir la démonstration</a>' + connexion + '</div>' +
+      '<p class="v-sous">7 jours avec votre vrai stock et vos vrais clients, sans rien payer et sans carte bancaire. La démonstration, elle, se touche tout de suite avec une boutique d’exemple. Déjà client ? Le même bouton vous reconnecte à votre boutique.</p>' +
       '<div class="v-im"><img src="' + IMG + 'tel-accueil.webp" alt="L’accueil de SAS STOCK sur un téléphone" width="560" height="1204" loading="eager"></div>' +
     '</div></div>' +
     '<div class="v-ban"><div class="v-w">Fonctionne <b>sans internet</b> · Vos données <b>sauvegardées en ligne</b> · <b>Téléphone et ordinateur</b> · Fait en <b>Côte d’Ivoire</b></div></div>' +
@@ -161,7 +162,7 @@ function pageVitrine() {
 
     '<section class="v-fin"><div class="v-w"><h2>Prêt à essayer ?</h2>' +
       '<p class="v-lede">La démonstration s’ouvre tout de suite, sans compte. Si elle vous convient, ' + esc(REVENDEUR.nom) + ' active votre boutique le jour même.</p>' +
-      '<div class="v-bs"><a class="v-bt v-p" href="demo.html">Essayer gratuitement</a><a class="v-bt v-l" href="' + waContact() + '" target="_blank" rel="noopener">Écrire sur WhatsApp</a></div>' +
+      '<div class="v-bs">' + (window.FB ? '<button class="v-bt v-p" data-a="google">Essayer gratuitement 7 jours</button>' : '<a class="v-bt v-p" href="demo.html">Voir la démonstration</a>') + '<a class="v-bt v-l" href="' + waContact() + '" target="_blank" rel="noopener">Écrire sur WhatsApp</a></div>' +
     '</div></section>' +
 
     '<footer><div class="v-w"><span>SAS STOCK — gestion de stock et de caisse, par ' + esc(REVENDEUR.nom) + '</span>' +

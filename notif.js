@@ -37,8 +37,9 @@ function calculAlertes() {
     const ret = C.impayes('client').map(x => ({ t: x.t, du: x.du, d: plusVieuxCredit(x.t.id) })).filter(x => x.d && now - x.d > 30 * J).sort((a, b) => a.d - b.d);
     if (ret.length) L.push({ k: 'credits', sig: ret.map(x => x.t.id + ':' + Math.round(x.du)).join(','), n: 'al',
       t: ret.length === 1 ? ret[0].t.nom + ' vous doit ' + M(ret[0].du) + ' depuis ' + Math.floor((now - ret[0].d) / J) + ' jours' : ret.length + ' clients doivent de l’argent depuis plus de 30 jours',
-      s: ret.length === 1 ? 'Relancez-le par WhatsApp depuis sa fiche.' : 'Total : ' + M(ret.reduce((s, x) => s + x.du, 0)),
-      liste: ret.slice(0, 5).map(x => ['ficheTiers', x.t.id, x.t.nom, M(x.du) + ' · ' + Math.floor((now - x.d) / J) + ' j']) });
+      s: ret.length === 1 ? 'Relancez-le par WhatsApp en un clic.' : 'Total : ' + M(ret.reduce((s, x) => s + x.du, 0)),
+      liste: ret.slice(0, 5).map(x => ['ficheTiers', x.t.id, x.t.nom, M(x.du) + ' · ' + Math.floor((now - x.d) / J) + ' j']),
+      b: typeof V !== 'undefined' && V.relances ? [['Relancer', 'relances']] : [] });
     const fo = C.impayes('fournisseur');
     if (fo.length) { const tot = fo.reduce((s, x) => s + x.du, 0);
       L.push({ k: 'fournisseurs', sig: fo.map(x => x.t.id + ':' + Math.round(x.du)).join(','), n: 'info', t: 'Vous devez ' + M(tot) + (fo.length === 1 ? ' à ' + fo[0].t.nom : ' à ' + fo.length + ' fournisseurs'),
@@ -56,8 +57,11 @@ function calculAlertes() {
   if (adm) {
     // licence
     if (etat && etat.ok && !etat.aVie && !etat.maitre && etat.reste <= 15)
-      L.push({ k: 'licence', sig: String(etat.reste <= 3 ? 'r' + etat.reste : etat.reste <= 7 ? '7' : '15'), n: etat.reste <= 7 ? 'ko' : 'al', t: 'Votre licence se termine dans ' + etat.reste + ' jour' + (etat.reste > 1 ? 's' : ''),
-        s: 'Renouvelez auprès de SAS TECH (07 48 67 13 34) pour ne pas être bloqué.', b: [['Prolonger', 'licence']] });
+      L.push({ k: 'licence', sig: String(etat.reste <= 3 ? 'r' + etat.reste : etat.reste <= 7 ? '7' : '15'), n: etat.reste <= 7 ? 'ko' : 'al',
+        t: (etat.essai ? 'Votre essai gratuit se termine dans ' : 'Votre licence se termine dans ') + etat.reste + ' jour' + (etat.reste > 1 ? 's' : ''),
+        s: etat.essai ? 'Demandez votre licence à ' + REVENDEUR.nom + ' (' + REVENDEUR.tel + ') : vous garderez tout ce que vous avez déjà saisi.'
+          : 'Renouvelez auprès de ' + REVENDEUR.nom + ' (' + REVENDEUR.tel + ') pour ne pas être bloqué.',
+        b: [[etat.essai ? 'Demander ma licence' : 'Prolonger', 'licence']] });
     // copie de sécurité
     const sv = C.db.meta.sauvegarde || 0;
     if (C.db.ventes.length >= 20 && now - sv > 30 * J)
@@ -69,6 +73,9 @@ function calculAlertes() {
 }
 /* ---------- nouveautés de chaque mise à jour ---------- */
 const NOUVEAUTES = [
+  { v: '2.11.0', l: ['Nouvel écran « Relances » (menu Plus) : vos clients qui doivent de l’argent, du plus ancien au plus récent, avec un bouton qui ouvre WhatsApp avec le message déjà écrit, citant la facture concernée. La date de chaque relance est enregistrée.',
+    'Nouveau compte : 7 jours d’essai gratuit, avec vos vraies données. Tout est conservé quand la licence est activée.',
+    'La cloche s’anime quand une nouvelle alerte arrive, et les notifications apparaissent une par une.'] },
   { v: '2.10.0', l: ['L’application s’ouvre et change d’écran beaucoup plus vite, surtout quand la boutique a beaucoup de ventes et de clients.'] },
   { v: '2.9.9', l: ['Stock : nouvel onglet « Classement ». Vous voyez les articles les plus vendus et ceux qui dorment, sur 7 jours, 30 jours, 3 mois, 12 mois ou depuis le début, classés par quantité, par chiffre d’affaires ou par marge.'] },
   { v: '2.9.8', l: ['Caisse : remise sur le total d’une vente, en francs ou en pourcentage. Elle apparaît sur la facture et le PDF.', 'Retours : depuis une facture, bouton « Retour / remboursement ». Les articles reviennent en stock, et le client est remboursé en espèces ou le montant est déduit de ce qu’il doit.', 'Nouvel onglet « Retours » dans les Journaux, et les remboursements apparaissent dans le point de caisse.', 'Réglages : vous choisissez si la caisse peut faire des remises et enregistrer des retours (le gérant le peut toujours).'] },
@@ -100,10 +107,14 @@ function alerteNouveautes(vu) {
 }
 const nonVues = (L, vu) => L.filter(x => x.fixe || vu[x.k] !== x.sig);
 
-/* ---------- la cloche ---------- */
+/* ---------- la cloche ----------
+   La cloche ne s'agite que lorsqu'une alerte de PLUS apparaît : sans ce garde-fou
+   elle rejouerait l'animation à chaque rendu d'écran, ce qui finit par agacer. */
+let _nAv = null;
 function cloche() {
   const n = nonVues(alertes(), lireVu()).length;
-  return '<button id="cloche" class="cloche' + (n ? ' on' : '') + '" data-a="notifs" aria-label="Notifications' + (n ? ' : ' + n + ' nouvelle' + (n > 1 ? 's' : '') : '') + '">' + ic('cloche') + (n ? '<b>' + (n > 9 ? '9+' : n) + '</b>' : '') + '</button>';
+  const neuf = _nAv != null && n > _nAv; _nAv = n;
+  return '<button id="cloche" class="cloche' + (n ? ' on' : '') + (neuf ? ' neuf' : '') + '" data-a="notifs" aria-label="Notifications' + (n ? ' : ' + n + ' nouvelle' + (n > 1 ? 's' : '') : '') + '">' + ic('cloche') + (n ? '<b>' + (n > 9 ? '9+' : n) + '</b>' : '') + '</button>';
 }
 const majCloche = () => { const c = $('#cloche'); if (c) c.outerHTML = cloche(); };
 const coqueNotifBase = coque;
@@ -111,8 +122,12 @@ coque = function (contenu) { return coqueNotifBase(contenu).replace('<button cla
 if (typeof majAttente === 'function') { const majAttenteNotifBase = majAttente; majAttente = function () { majAttenteNotifBase(); majCloche(); }; }
 
 /* ---------- le panneau ---------- */
-function carteNotif(x, vue) {
-  return '<div class="carte notif ' + x.n + (vue ? ' vue' : '') + '"><div class="nt"><b>' + esc(x.t) + '</b>' + (x.s ? '<span>' + esc(x.s) + '</span>' : '') + '</div>' +
+/* L'apparition en cascade n'a lieu qu'à l'ouverture du panneau : après un « Vu »,
+   rejouer l'animation sur toute la liste donnerait l'impression d'un rechargement. */
+let _anim = 0;
+function carteNotif(x, vue, i) {
+  const d = _anim && i != null ? ' style="animation-delay:' + Math.min(i * 55, 330) + 'ms"' : ' style="animation:none"';
+  return '<div class="carte notif ' + x.n + (vue ? ' vue' : '') + '"' + d + '><div class="nt"><b>' + esc(x.t) + '</b>' + (x.s ? '<span>' + esc(x.s) + '</span>' : '') + '</div>' +
     (x.items ? '<ul class="majl">' + x.items.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' : '') +
     (x.liste ? '<div class="liste" style="margin-top:8px">' + x.liste.map(l => '<button class="ligne" data-a="' + l[0] + '" data-id="' + esc(l[1]) + '"><div class="f"><b>' + esc(l[2]) + '</b></div><div class="d"><span>' + esc(l[3]) + '</span></div></button>').join('') + '</div>' : '') +
     '<div class="rangee nb">' + (x.b || []).map(b => '<button class="btn mini p" data-a="' + b[1] + '"' + (b[2] ? ' data-id="' + esc(b[2]) + '"' : '') + '>' + esc(b[0]) + '</button>').join('') +
@@ -120,12 +135,12 @@ function carteNotif(x, vue) {
 }
 function panneau() {
   const L = alertes(), vu = lireVu(), nv = nonVues(L, vu), vues = L.filter(x => nv.indexOf(x) < 0);
-  ouvrir('Notifications', (nv.length ? nv.map(x => carteNotif(x)).join('') + (nv.filter(x => !x.fixe).length > 1 ? '<button class="btn f large" style="margin-top:4px" data-a="notifTout">Tout marquer comme vu</button>' : '')
+  ouvrir('Notifications', (nv.length ? nv.map((x, i) => carteNotif(x, 0, i)).join('') + (nv.filter(x => !x.fixe).length > 1 ? '<button class="btn f large" style="margin-top:4px" data-a="notifTout">Tout marquer comme vu</button>' : '')
     : '<div class="carte">' + vide('Rien de nouveau', L.length ? 'Vous avez tout vu.' : 'Tout va bien : pas de rupture, pas de retard, rien en attente.') + '</div>') +
     (vues.length ? '<details style="margin-top:14px"><summary class="petit doux">Déjà vues (' + vues.length + ')</summary><div style="margin-top:8px">' + vues.map(x => carteNotif(x, 1)).join('') + '</div></details>' : '') +
     '<p class="petit doux" style="margin-top:12px">Une alerte marquée « Vu » revient si la situation change (nouvel article en rupture, nouveau retard…).</p>');
 }
-A.notifs = () => panneau();
+A.notifs = () => { _anim = 1; panneau(); _anim = 0; };
 A.notifVu = d => { const L = alertes(), x = L.find(y => y.k === d.k), vu = lireVu(); if (x) { vu[x.k] = x.sig; ecrireVu(vu); } panneau(); majCloche(); };
 A.notifTout = () => { const vu = lireVu(); alertes().forEach(x => { if (!x.fixe) vu[x.k] = x.sig; }); ecrireVu(vu); panneau(); majCloche(); };
 A.notifStock = () => { fermer(); S.f.stab = 'alertes'; aller('stock'); };

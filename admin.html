@@ -16,7 +16,15 @@ button.d{color:#C2362C;border-color:#E9BDB8}
 .r{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .e{font-weight:700;word-break:break-all}
 .s{color:#5A6D64;font-size:.86rem}
-.ok{color:#0A5C3E;font-weight:700}.ko{color:#C2362C;font-weight:700}
+.ok{color:#0A5C3E;font-weight:700}.ko{color:#C2362C;font-weight:700}.al{color:#8A5A00;font-weight:700}.es{color:#1C6B4B;font-weight:700}
+.cpt{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px}
+@media(min-width:620px){.cpt{grid-template-columns:repeat(5,1fr)}}
+.cpt div{background:#fff;border:1px solid #D9E1D9;border-radius:12px;padding:9px 11px}
+.cpt span{display:block;font-size:.76rem;color:#5A6D64}.cpt b{display:block;font-size:1.3rem;font-weight:800}
+.fl{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.fl button{border-radius:99px;padding:6px 12px;min-height:34px;font-size:.88rem}
+.fl button.on{background:#10261F;border-color:#10261F;color:#fff}
+a.lien{color:#0E7A53;font-weight:700;text-decoration:none;font-size:.86rem}
 input{font:inherit;width:100%;box-sizing:border-box;border:1.5px solid #D9E1D9;border-radius:10px;padding:10px;margin-bottom:10px}
 </style>
 </head>
@@ -25,7 +33,7 @@ input{font:inherit;width:100%;box-sizing:border-box;border:1.5px solid #D9E1D9;b
 <main>
 <p id="msg" class="s">Chargement…</p>
 <div id="outils" hidden><input id="q" placeholder="Chercher une adresse e-mail ou un nom"><button id="maj">Actualiser la liste</button> <button id="sortir">Se déconnecter</button></div>
-<div id="liste" style="margin-top:12px"></div>
+<div id="cpt" class="cpt" hidden></div><div id="fl" class="fl" hidden></div><div id="liste" style="margin-top:12px"></div>
 </main>
 <script type="module" src="fb.js"></script>
 <script type="module">
@@ -33,20 +41,66 @@ const $ = id => document.getElementById(id), J = 864e5, VIE = Date.UTC(2099, 0, 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dj = t => new Date(t).toLocaleDateString('fr-FR');
 let L = [];
-function etat(b) {
-  if (!b.fin) return '<span class="ko">Pas encore activée</span>';
-  if (b.fin >= VIE - J) return '<span class="ok">Licence à vie</span>';
-  const r = Math.ceil((b.fin - Date.now()) / J);
-  return r > 0 ? '<span class="ok">Active jusqu’au ' + dj(b.fin) + ' (' + r + ' j)</span>' : '<span class="ko">Expirée ou bloquée depuis le ' + dj(b.fin) + '</span>';
+const ESSAI = 7;
+/* Situation d'une boutique. L'ordre de ce tableau est celui de la liste :
+   ce qui demande une action du vendeur remonte, les licences tranquilles descendent. */
+const ORDRE = ['bientot', 'essai', 'perdu', 'expire', 'jamais', 'active', 'vie'];
+function situation(b) {
+  const now = Date.now();
+  if (b.fin && b.fin >= VIE - J) return 'vie';
+  if (b.fin && b.fin > now) return Math.ceil((b.fin - now) / J) <= 15 ? 'bientot' : 'active';
+  if (b.fin) return 'expire';
+  if (b.essai) return b.essai + ESSAI * J > now ? 'essai' : 'perdu';
+  return 'jamais';
 }
+const rang = b => ORDRE.indexOf(situation(b));
+function etat(b) {
+  const now = Date.now(), g = situation(b), finEssai = b.essai ? b.essai + ESSAI * J : 0;
+  if (g === 'vie') return '<span class="ok">Licence à vie</span>';
+  if (g === 'active') return '<span class="ok">Active jusqu’au ' + dj(b.fin) + ' (' + Math.ceil((b.fin - now) / J) + ' j)</span>';
+  if (g === 'bientot') return '<span class="al">Expire le ' + dj(b.fin) + ' — dans ' + Math.ceil((b.fin - now) / J) + ' j</span>';
+  if (g === 'essai') return '<span class="es">Essai gratuit, fini le ' + dj(finEssai) + ' (' + Math.ceil((finEssai - now) / J) + ' j)</span>';
+  if (g === 'perdu') return '<span class="ko">Essai terminé le ' + dj(finEssai) + ' — jamais payé</span>';
+  if (g === 'expire') return '<span class="ko">Expirée ou bloquée depuis le ' + dj(b.fin) + '</span>';
+  return '<span class="ko">Pas encore activée</span>';
+}
+/* « Inactive » : la boutique n'a pas ouvert l'application depuis 30 jours. */
+const inactive = b => b.vu && Date.now() - b.vu > 30 * J;
+let filtre = 'tout';
+const FILTRES = [
+  ['tout', 'Toutes', () => true],
+  ['bientot', 'Expire sous 15 j', b => situation(b) === 'bientot'],
+  ['essai', 'Essais en cours', b => situation(b) === 'essai'],
+  ['perdu', 'Essais terminés', b => situation(b) === 'perdu'],
+  ['expire', 'Expirées', b => situation(b) === 'expire'],
+  ['dort', 'Inactives 30 j', b => inactive(b)]
+];
 function afficher() {
-  const q = $('q').value.trim().toLowerCase(), V = L.filter(b => !q || (b.email + ' ' + b.nom).toLowerCase().includes(q));
-  $('liste').innerHTML = V.length ? V.map(b => '<div class="carte"><div class="e">' + esc(b.email || b.uid) + '</div><div class="s">' + esc(b.nom) + (b.vu ? ', vue le ' + dj(b.vu) : '') + '</div><div>' + etat(b) + '</div><div class="r" data-u="' + esc(b.uid) + '">' +
-    '<button data-j="7">+ 7 jours</button><button data-m="1">+ 1 mois</button><button data-m="3">+ 3 mois</button><button data-m="6">+ 6 mois</button><button class="p" data-m="12">+ 1 an</button><button data-v="1">À vie</button><button class="d" data-b="1">Bloquer</button></div></div>').join('') : '<p class="s">Aucune boutique. Une boutique apparaît ici dès que son propriétaire se connecte avec Google dans l’application.</p>';
+  const q = $('q').value.trim().toLowerCase();
+  const f = (FILTRES.find(x => x[0] === filtre) || FILTRES[0])[2];
+  const V = L.filter(b => f(b)).filter(b => !q || (b.email + ' ' + b.nom).toLowerCase().includes(q))
+    .sort((a, b) => rang(a) - rang(b) || (a.fin || a.essai || 0) - (b.fin || b.essai || 0));
+  const n = g => L.filter(FILTRES.find(x => x[0] === g)[2]).length;
+  $('cpt').hidden = false;
+  $('cpt').innerHTML = [['Boutiques', L.length], ['Expire sous 15 j', n('bientot')], ['Essais en cours', n('essai')], ['Essais terminés', n('perdu')], ['Inactives 30 j', n('dort')]]
+    .map(x => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('');
+  $('fl').hidden = false;
+  $('fl').innerHTML = FILTRES.map(x => '<button data-f="' + x[0] + '"' + (x[0] === filtre ? ' class="on"' : '') + '>' + x[1] + ' (' + n(x[0]) + ')</button>').join('');
+  $('liste').innerHTML = V.length ? V.map(b => '<div class="carte"><div class="e">' + esc(b.email || b.uid) + '</div>' +
+    '<div class="s">' + esc(b.nom) + (b.vu ? ', vue ' + depuis(b.vu) : ', jamais ouverte') + (inactive(b) ? ' — <b>inactive</b>' : '') + '</div>' +
+    '<div>' + etat(b) + '</div>' +
+    (b.email ? '<div style="margin-top:4px"><a class="lien" href="mailto:' + esc(b.email) + '">Écrire</a></div>' : '') +
+    '<div class="r" data-u="' + esc(b.uid) + '">' +
+    '<button data-j="7">+ 7 jours</button><button data-m="1">+ 1 mois</button><button data-m="3">+ 3 mois</button><button data-m="6">+ 6 mois</button><button class="p" data-m="12">+ 1 an</button><button data-v="1">À vie</button><button class="d" data-b="1">Bloquer</button></div></div>').join('')
+    : '<p class="s">' + (L.length ? 'Aucune boutique dans ce filtre.' : 'Aucune boutique. Une boutique apparaît ici dès que son propriétaire se connecte avec Google dans l’application.') + '</p>';
+}
+function depuis(t) {
+  const n = Math.floor((Date.now() - t) / J);
+  return n <= 0 ? 'aujourd’hui' : n === 1 ? 'hier' : 'il y a ' + n + ' jours';
 }
 async function charger() {
   $('msg').textContent = 'Chargement…';
-  try { L = (await FB.boutiques()).sort((a, b) => (a.fin || 0) - (b.fin || 0)); $('msg').textContent = L.length + ' boutique(s)'; $('outils').hidden = false; afficher(); }
+  try { L = await FB.boutiques(); $('msg').textContent = L.length + ' boutique(s)'; $('outils').hidden = false; afficher(); }
   catch (e) { $('outils').hidden = true; $('liste').innerHTML = ''; $('msg').textContent = 'Accès refusé : cette page est réservée au compte vendeur.'; }
 }
 $('liste').addEventListener('click', async e => {
@@ -57,6 +111,7 @@ $('liste').addEventListener('click', async e => {
   b.disabled = true;
   try { await FB.licence(uid, fin); x.fin = fin; afficher(); } catch (er) { $('msg').textContent = 'Échec : ' + er.message; b.disabled = false; }
 });
+$('fl').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; filtre = b.dataset.f; afficher(); });
 $('q').addEventListener('input', afficher); $('maj').addEventListener('click', charger); $('sortir').addEventListener('click', () => FB.deconnecter());
 const pret = () => FB.onUser(u => { if (u) charger(); else { $('outils').hidden = true; $('liste').innerHTML = '<button class="p" id="go">Se connecter avec Google</button>'; $('msg').textContent = 'Connectez-vous avec le compte vendeur.'; $('go').onclick = () => FB.connecter().catch(() => {}); } });
 if (window.FB) pret(); else addEventListener('fb-pret', pret, { once: true });

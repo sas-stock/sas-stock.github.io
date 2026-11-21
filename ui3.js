@@ -99,16 +99,23 @@ function sauver(tout) {
   clearTimeout(tPousse); tPousse = setTimeout(pousser, 700);
   if (tout) return Promise.resolve();
 }
+const JESSAI = 7; // durée de l'essai gratuit, en jours
 function verifierLicence() {
   const now = Date.now();
   if (!compte) { etat = { ok: false, raison: etat.raison === 'chargement' ? 'chargement' : 'compte' }; return; }
-  if (lic.vu && now < lic.vu - 2 * 864e5) { etat = { ok: false, raison: 'horloge' }; return; }
+  /* Plancher de temps : la date vue la plus avancée. lic.sol vient du serveur et résiste
+     à l'effacement des données de l'application ; lic.vu n'est qu'un repère local. */
+  const sol = Math.max(lic.vu || 0, lic.sol || 0);
+  if (sol && now < sol - 2 * 864e5) { etat = { ok: false, raison: 'horloge' }; return; }
   if (now > (lic.vu || 0) + 36e5) { lic.vu = now; Store.set('lic', lic); }
-  if (licFin == null) { etat = { ok: false, raison: 'attente' }; return; }
-  const reste = Math.ceil((licFin - now) / 864e5), aVie = licFin > Date.UTC(2090, 0, 1), expDate = new Date(licFin);
-  if (reste <= 0) etat = { ok: false, raison: 'expiree', expDate };
+  /* Sans licence vendue, la boutique vit sur son essai gratuit, daté par le serveur. */
+  let fin = licFin, essai = false;
+  if (fin == null && lic.essai) { fin = lic.essai + JESSAI * 864e5; essai = true; }
+  if (fin == null) { etat = { ok: false, raison: 'attente' }; return; }
+  const reste = Math.ceil((fin - now) / 864e5), aVie = fin > Date.UTC(2090, 0, 1), expDate = new Date(fin);
+  if (reste <= 0) etat = { ok: false, raison: essai ? 'essaiFini' : 'expiree', expDate, essai };
   else if (!sy.init) etat = { ok: false, raison: 'premier', licOk: true };
-  else etat = { ok: true, aVie, reste: aVie ? Infinity : reste, expDate, type: 1 };
+  else etat = { ok: true, aVie, essai, reste: aVie ? Infinity : reste, expDate, type: 1 };
 }
 function demarrerSync() {
   if (arret || !compte || !window.FB || !(etat.ok || etat.licOk)) return;
@@ -134,6 +141,15 @@ async function ouvrirCompte(u) {
   verifierLicence(); rendre();
   if (!window.FB) return;
   FB.profil(u).catch(() => {});
+  /* Heure du serveur : elle fixe le plancher anti-recul et la date de début de l'essai. */
+  if (FB.heure) FB.heure(u.uid).then(h => {
+    if (!h || !compte || compte.uid !== u.uid) return;
+    const av = etat.ok + '|' + etat.raison;
+    lic.sol = Math.max(lic.sol || 0, h.now); lic.essai = h.essai || null; Store.set('lic', lic);
+    verifierLicence();
+    if (av !== etat.ok + '|' + etat.raison) rendre();
+    demarrerSync();
+  }).catch(() => {});
   arretLic = FB.ecouterLicence(u.uid, fin => {
     licFin = fin; Store.set(cle('lic'), { fin });
     const av = etat.ok + '|' + etat.raison; verifierLicence();
@@ -143,8 +159,16 @@ async function ouvrirCompte(u) {
   demarrerSync();
 }
 function texteLicence() {
-  if (!etat.ok) return 'Aucune licence active';
+  if (!etat.ok) return etat.raison === 'essaiFini' ? 'Essai gratuit terminé' : 'Aucune licence active';
+  if (etat.essai) return 'Essai gratuit : il reste ' + etat.reste + ' jour' + (etat.reste > 1 ? 's' : '');
   return etat.aVie ? 'Licence à vie' : 'Licence valable jusqu’au ' + dj(etat.expDate.getTime()) + ' (' + etat.reste + ' jour' + (etat.reste > 1 ? 's' : '') + ')';
+}
+/* Demande de licence prête à envoyer : le vendeur reçoit l'adresse du compte, qui est
+   la seule chose dont il a besoin pour activer la boutique depuis sa page Licences. */
+function lienDemande(texte) {
+  const nom = C.db && C.db.meta && C.db.meta.shop && C.db.meta.shop.nom ? C.db.meta.shop.nom : '';
+  const m = 'Bonjour ' + REVENDEUR.nom + ', je souhaite activer ma licence SAS STOCK' + (nom ? ' pour ma boutique ' + nom : '') + '. Mon compte : ' + (compte ? compte.email : '') + '.';
+  return '<a class="btn p large" style="margin-top:10px" target="_blank" rel="noopener" href="https://wa.me/' + REVENDEUR.tel2.replace(/\D/g, '') + '?text=' + encodeURIComponent(m) + '">' + texte + '</a>';
 }
 function vueActivation() {
   const r = etat.raison, mail = compte ? '<div class="code" style="font-size:1rem;letter-spacing:0;word-break:break-all">' + esc(compte.email) + '</div>' : '';
@@ -154,6 +178,9 @@ function vueActivation() {
   if (r === 'horloge') return porte('<p class="ex">La date de cet appareil semble incorrecte. Réglez la date et l’heure, puis rouvrez l’application.</p>');
   if (r === 'attente') return porte('<p class="ex">Votre compte est créé. Il reste à activer votre licence.</p><div class="carte"><span class="petit doux gras">Votre adresse à envoyer à ' + esc(REVENDEUR.nom) + '</span>' + mail +
     '<button class="btn mini" data-a="copier" data-t="' + esc(compte.email) + '">Copier l’adresse</button><p class="petit doux" style="margin-top:10px">Dès que ' + esc(REVENDEUR.nom) + (REVENDEUR.tel ? ' (' + esc(REVENDEUR.tel) + ')' : '') + ' active votre licence, l’application s’ouvre toute seule sur cet écran.</p></div>' + changer, 1);
+  if (r === 'essaiFini') return porte('<p class="ex">Votre essai gratuit de ' + JESSAI + ' jours s’est terminé le ' + dj(etat.expDate.getTime()) + '. <b>Tout ce que vous avez saisi est conservé</b> : vos articles, vos ventes et vos clients reviennent dès que votre licence est activée.</p>' +
+    '<div class="carte"><span class="petit doux gras">Votre compte</span>' + mail + lienDemande('Demander ma licence sur WhatsApp') +
+    '<p class="petit doux" style="margin-top:10px">Ou appelez ' + esc(REVENDEUR.nom) + ' au ' + esc(REVENDEUR.tel) + '. L’application se rouvrira toute seule dès l’activation.</p></div>' + changer, 1);
   if (r === 'expiree') return porte('<p class="ex">Votre licence a expiré le ' + dj(etat.expDate.getTime()) + '. Vos données sont conservées. Contactez ' + esc(REVENDEUR.nom) + ' pour la prolonger : l’application se rouvrira toute seule.</p><div class="carte"><span class="petit doux gras">Votre compte</span>' + mail + '</div>' + changer, 1);
   return porte('<p class="ex">Connectez-vous avec le compte Google de votre boutique. Vos données seront les mêmes sur votre téléphone et votre ordinateur.</p><div class="carte">' +
     (window.FB ? '<button class="btn p large" data-a="google">Continuer avec Google</button>' : '<p>Connexion Internet nécessaire pour la première ouverture. Vérifiez votre réseau puis rouvrez l’application.</p>') + '</div>', 1);
@@ -161,7 +188,7 @@ function vueActivation() {
 function modaleLicence() {
   ouvrir('Compte et licence', '<div class="carte"><p class="gras">' + esc(texteLicence()) + '</p><p class="petit doux" style="margin-top:10px">Compte Google de la boutique</p><p style="word-break:break-all">' + esc(compte.email) + '</p>' +
     '<p class="petit doux" style="margin-top:10px">État : ' + esc(TXT[syncEtat] === 'SAS STOCK' ? 'En attente' : TXT[syncEtat]) + '</p></div>' +
-    '<div class="carte" style="margin-top:12px"><p class="petit doux">Pour prolonger la licence ou obtenir de l’aide, contactez ' + esc(REVENDEUR.nom) + ' :</p><p style="margin-top:6px"><a class="gras" style="color:inherit" href="tel:' + REVENDEUR.tel2 + '">' + esc(REVENDEUR.tel) + '</a></p><p style="word-break:break-all"><a style="color:inherit" href="mailto:' + REVENDEUR.mail + '">' + esc(REVENDEUR.mail) + '</a></p></div>' +
+    '<div class="carte" style="margin-top:12px">' + (etat.essai ? '<p class="petit doux">Votre essai se termine le ' + dj(etat.expDate.getTime()) + '. Demandez votre licence dès maintenant : tout ce que vous avez saisi est conservé.</p>' + lienDemande('Demander ma licence sur WhatsApp') + '<p class="petit doux" style="margin-top:12px">Ou contactez ' + esc(REVENDEUR.nom) + ' :</p>' : '') + '<p class="petit doux">' + (etat.essai ? '' : 'Pour prolonger la licence ou obtenir de l’aide, contactez ' + esc(REVENDEUR.nom) + ' :') + '</p><p style="margin-top:6px"><a class="gras" style="color:inherit" href="tel:' + REVENDEUR.tel2 + '">' + esc(REVENDEUR.tel) + '</a></p><p style="word-break:break-all"><a style="color:inherit" href="mailto:' + REVENDEUR.mail + '">' + esc(REVENDEUR.mail) + '</a></p></div>' +
     '<button class="btn p large" style="margin-top:12px" data-a="synchro">Synchroniser maintenant</button><button class="btn large" style="margin-top:8px" data-a="quitterCompte">Utiliser un autre compte Google</button>');
 }
 A.licence = () => modaleLicence();

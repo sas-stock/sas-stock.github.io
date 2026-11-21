@@ -18,8 +18,8 @@
      passait plus d'une seconde par écran. On les calcule maintenant en une passe et
      on les garde jusqu'à la prochaine modification. */
   C.rev = 0;
-  var _soldes = null, _rapports = {}, _sig = '';
-  C.touche = function () { C.rev++; _soldes = null; _rapports = {}; };
+  var _soldes = null, _rapports = {}, _sig = '', _vieuxD = null, _vieuxJ = null;
+  C.touche = function () { C.rev++; _soldes = null; _rapports = {}; _vieuxD = _vieuxJ = null; };
   function signature() {
     var d = C.db;
     if (!d) return '';
@@ -28,7 +28,7 @@
   }
   function frais() { // vide les index si la base a changé sans passer par C.touche (synchro, restauration)
     var g = signature();
-    if (g !== _sig) { _sig = g; _soldes = null; _rapports = {}; }
+    if (g !== _sig) { _sig = g; _soldes = null; _rapports = {}; _vieuxD = _vieuxJ = null; }
   }
   C.sig = signature;
   C.soldes = function () { // tous les soldes en une seule passe
@@ -43,18 +43,28 @@
     _soldes = s;
     return s;
   };
-  C.vieuxCredits = function () { // date du plus ancien montant encore dû, par client, en une passe
+  /* Le plus ancien montant encore dû, par client, en une passe.
+     C.vieuxCreditsD() rend l'opération entière (date, reste dû, n° de facture) : les
+     relances citent la facture au client. C.vieuxCredits() n'en garde que les dates.
+     Les deux sont mémorisés : notif.js les interroge une fois par client impayé. */
+  function calculVieux() {
     var parCli = {}, regle = {}, out = {};
-    function ajoute(id, date, du) { if (du > 0) (parCli[id] || (parCli[id] = [])).push({ date: date, du: du }); }
-    C.db.ventes.forEach(function (v) { if (!v.annule && v.clientId) ajoute(v.clientId, v.date, v.total - v.paye); });
-    C.db.tiers.forEach(function (t) { (t.dettes || []).forEach(function (d) { ajoute(t.id, d.date, d.montant); }); });
+    function ajoute(id, date, du, num) { if (du > 0) (parCli[id] || (parCli[id] = [])).push({ date: date, du: du, num: num || null }); }
+    C.db.ventes.forEach(function (v) { if (!v.annule && v.clientId) ajoute(v.clientId, v.date, v.total - v.paye, v.num); });
+    C.db.tiers.forEach(function (t) { (t.dettes || []).forEach(function (d) { ajoute(t.id, d.date, d.montant, null); }); });
     C.db.reglements.forEach(function (r) { regle[r.tiersId] = (regle[r.tiersId] || 0) + r.montant; });
     C.listeRetours().forEach(function (r) { if (!r.annule && r.mode === 'avoir' && r.clientId) regle[r.clientId] = (regle[r.clientId] || 0) + r.total; });
     Object.keys(parCli).forEach(function (id) {
       var reste = regle[id] || 0, L = parCli[id].sort(function (a, b) { return a.date - b.date; });
-      for (var i = 0; i < L.length; i++) { if (reste >= L[i].du) { reste -= L[i].du; continue; } out[id] = L[i].date; return; }
+      for (var i = 0; i < L.length; i++) { if (reste >= L[i].du) { reste -= L[i].du; continue; } out[id] = L[i]; return; }
     });
     return out;
+  }
+  C.vieuxCreditsD = function () { frais(); if (!_vieuxD) _vieuxD = calculVieux(); return _vieuxD; };
+  C.vieuxCredits = function () {
+    frais();
+    if (!_vieuxJ) { var d = C.vieuxCreditsD(); _vieuxJ = {}; Object.keys(d).forEach(function (k) { _vieuxJ[k] = d[k].date; }); }
+    return _vieuxJ;
   };
   function err(m) { var e = new Error(m); e.metier = true; return e; }
   function par(liste, id) { for (var i = 0; i < liste.length; i++) if (liste[i].id === id) return liste[i]; return null; }
