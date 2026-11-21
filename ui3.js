@@ -4,10 +4,32 @@ let compte = null, licFin = null, syncEtat = 'attente', sy = { h: {}, last: 0, i
 const cle = n => n + '_' + compte.uid;
 const LISTES = { a: 'articles', t: 'tiers', v: 'ventes', c: 'achats', r: 'reglements', e: 'depenses', m: 'mouvements', x: 'retours' };
 function hache(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return s.length + ':' + h; }
-function entites() {
+const cacheMouv = new Map(); // les mouvements de stock ne changent plus une fois écrits : on garde leur JSON et leur empreinte
+function jsonMouv(x) {
+  let c = cacheMouv.get(x.id);
+  if (!c) { const j = JSON.stringify(x); c = [j, hache(j)]; cacheMouv.set(x.id, c); }
+  return c;
+}
+/* Construire la liste complète des enregistrements à envoyer coûte cher sur une grosse
+   boutique : on la calcule par tranches pour ne pas bloquer l'écran, et on la garde
+   tant que rien n'a changé (l'envoi et le compteur « à envoyer » s'en servent tous les deux). */
+let _entSig = null, _ent = null;
+async function entites() {
+  const g = C.sig();
+  if (_ent && g === _entSig) return _ent;
   const d = C.db, o = new Map();
-  if (d.users.length) o.set('cfg', JSON.stringify({ shop: d.meta.shop, opt: d.meta.opt, users: d.users, depots: d.depots, familles: d.familles }));
-  for (const p in LISTES) (d[LISTES[p]] || []).forEach(x => o.set(p + '_' + x.id, JSON.stringify(x)));
+  if (d.users.length) { const j = JSON.stringify({ shop: d.meta.shop, opt: d.meta.opt, users: d.users, depots: d.depots, familles: d.familles }); o.set('cfg', [j, hache(j)]); }
+  let n = 0;
+  for (const p in LISTES) {
+    const L = d[LISTES[p]] || [];
+    for (let i = 0; i < L.length; i++) {
+      const x = L[i];
+      if (p === 'm') o.set('m_' + x.id, jsonMouv(x));
+      else { const j = JSON.stringify(x); o.set(p + '_' + x.id, [j, hache(j)]); }
+      if (++n % 4000 === 0) await new Promise(r => setTimeout(r)); // on rend la main à l'écran entre deux tranches
+    }
+  }
+  _entSig = C.sig(); _ent = o;
   return o;
 }
 function dedoublonner(d) { // deux appareils hors ligne peuvent créer le même numéro : le plus ancien le garde, l'autre reçoit le suivant (même résultat sur tous les appareils)
@@ -17,7 +39,7 @@ function dedoublonner(d) { // deux appareils hors ligne peuvent créer le même 
     d[p[1]].slice().sort((x, y) => x.date - y.date || (x.id < y.id ? -1 : 1)).forEach(x => {
       if (!vus.has(x.num)) { vus.add(x.num); return; }
       const ancien = x.num; x.numAvant = x.numAvant || ancien; x.num = C.numero(p[0]); vus.add(x.num); modif = true;
-      d.mouvements.forEach(m => { if (m.ref === ancien && ((m.type === 'vente' || m.type === 'achat') && m.date === x.date || m.type === 'annulation' && x.annuleLe && Math.abs(m.date - x.annuleLe) < 6e4)) m.ref = x.num; });
+      d.mouvements.forEach(m => { if (m.ref === ancien && ((m.type === 'vente' || m.type === 'achat') && m.date === x.date || m.type === 'annulation' && x.annuleLe && Math.abs(m.date - x.annuleLe) < 6e4)) { m.ref = x.num; cacheMouv.delete(m.id); } });
     });
   });
   return modif;
@@ -36,6 +58,7 @@ function appliquer(docs) {
     if (h === null) { if (i >= 0) L.splice(i, 1); } else if (i >= 0) L[i] = JSON.parse(x.j); else L.push(JSON.parse(x.j));
   });
   if (!change) return false;
+  C.touche();
   ['ventes', 'achats', 'reglements', 'depenses', 'mouvements', 'retours'].forEach(l => d[l].sort((a, b) => a.date - b.date));
   const s = {}; d.mouvements.forEach(m => { const a = s[m.articleId] || (s[m.articleId] = {}); a[m.depotId] = (a[m.depotId] || 0) + m.qte; }); d.stock = s;
   [['V', 'ventes'], ['A', 'achats'], ['R', 'reglements'], ['T', 'retours']].forEach(p => d[p[1]].forEach(y => { const n = parseInt(String(y.num).split('-')[1], 10); if (n > (d.meta.seq[p[0]] || 0)) d.meta.seq[p[0]] = n; }));
@@ -53,8 +76,8 @@ async function pousser() {
   enPousse = true;
   const lent = setTimeout(() => majSync('horsligne'), 5000);
   try {
-    const ent = entites(), lot = [];
-    ent.forEach((j, k) => { const h = hache(j); if (sy.h[k] !== h) lot.push({ k, j, h }); });
+    const ent = await entites(), lot = [];
+    ent.forEach((v, k) => { if (sy.h[k] !== v[1]) lot.push({ k, j: v[0], h: v[1] }); });
     Object.keys(sy.h).forEach(k => { if (!ent.has(k)) lot.push({ k, j: null, h: null }); });
     if (lot.length) majSync('envoi');
     for (let i = 0; i < lot.length; i += 300) {
@@ -69,6 +92,7 @@ async function pousser() {
   if (encore) { encore = false; pousser(); }
 }
 function sauver(tout) {
+  C.touche(); // la base a changé : les index (soldes, rapports, alertes) sont à refaire
   clearTimeout(tSauve);
   const f = () => { if (compte) Store.set(cle('db'), C.db); };
   if (tout) f(); else tSauve = setTimeout(f, 120);

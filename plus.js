@@ -419,10 +419,10 @@ A.scanCode = () => scanner(code => {
 
 /* ---------- nombre de factures en attente d'envoi dans la bulle En ligne / Hors ligne ---------- */
 let attente = { n: 0, v: 0 }, tAttente = null;
-function compterAttente() {
+async function compterAttente() {
   if (!compte || !sy || !sy.init) { attente = { n: 0, v: 0 }; return; }
-  let n = 0, v = 0; const ent = entites();
-  ent.forEach((j, k) => { if (sy.h[k] !== hache(j)) { n++; if (k.startsWith('v_')) v++; } });
+  let n = 0, v = 0; const ent = await entites();
+  ent.forEach((x, k) => { if (sy.h[k] !== x[1]) { n++; if (k.startsWith('v_')) v++; } });
   Object.keys(sy.h).forEach(k => { if (!ent.has(k)) n++; });
   attente = { n, v };
 }
@@ -435,8 +435,8 @@ pastille = function () {
   return '<span id="reseau" class="reseau' + (h ? ' off' : k ? ' ko' : '') + '"' + (t ? ' title="' + t + ' en attente d’envoi"' : '') + '>' + (h ? 'Hors ligne' : k ? 'En pause' : 'En ligne') +
     (t ? '<span class="na"> · ' + texteAttente(true) + '</span><span class="nl">' + t.replace(/^\d+/, '') + '</span>' : '') + '</span>';
 };
-function majAttente() {
-  compterAttente();
+async function majAttente() {
+  await compterAttente();
   const r = $('#reseau'); if (r) r.outerHTML = pastille();
   const e = $('#etatSync');
   if (e) e.textContent = attente.n && syncEtat !== 'envoi' ? (attente.v ? texteAttente() + ' à envoyer' : 'Modifications à envoyer') : TXT[syncEtat];

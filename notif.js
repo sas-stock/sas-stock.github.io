@@ -10,17 +10,20 @@ const lireVu = () => { try { return JSON.parse(localStorage.getItem(cleVu()) || 
 const ecrireVu = o => { try { localStorage.setItem(cleVu(), JSON.stringify(o)); } catch (e) {} };
 
 // date de la plus ancienne vente à crédit encore impayée (les règlements soldent d'abord les plus anciennes)
-function plusVieuxCredit(tid) {
-  let regle = C.db.reglements.filter(r => r.tiersId === tid).reduce((s, r) => s + r.montant, 0);
-  const t = C.tiers(tid);
-  const V = C.db.ventes.filter(v => !v.annule && v.clientId === tid && v.total - v.paye > 0).map(v => ({ date: v.date, du: v.total - v.paye }))
-    .concat(((t && t.dettes) || []).map(d => ({ date: d.date, du: d.montant }))).sort((a, b) => a.date - b.date);
-  for (const v of V) { const du = v.du; if (regle >= du) { regle -= du; continue; } return v.date; }
-  return null;
-}
+const plusVieuxCredit = tid => C.vieuxCredits()[tid] || null;
 
+/* Les alertes parcourent tout le stock et tous les crédits : on garde le résultat
+   jusqu'à la prochaine modification, sinon la cloche ralentit chaque écran. */
+let _alCle = '', _al = [];
 function alertes() {
   if (!C.db || !S.user) return [];
+  const cle = C.rev + '|' + C.db.ventes.length + '|' + C.db.mouvements.length + '|' + C.db.tiers.length + '|' + S.user.id +
+    '|' + (typeof attente !== 'undefined' && attente ? attente.n + ':' + attente.v : '') + '|' + syncEtat + '|' + (navigator.onLine === false);
+  if (cle === _alCle) return _al;
+  _alCle = cle; _al = calculAlertes();
+  return _al;
+}
+function calculAlertes() {
   const adm = admin(), L = [], now = Date.now();
   const art = C.db.articles.filter(a => a.actif !== false);
   // stock
@@ -66,6 +69,7 @@ function alertes() {
 }
 /* ---------- nouveautés de chaque mise à jour ---------- */
 const NOUVEAUTES = [
+  { v: '2.10.0', l: ['L’application s’ouvre et change d’écran beaucoup plus vite, surtout quand la boutique a beaucoup de ventes et de clients.'] },
   { v: '2.9.9', l: ['Stock : nouvel onglet « Classement ». Vous voyez les articles les plus vendus et ceux qui dorment, sur 7 jours, 30 jours, 3 mois, 12 mois ou depuis le début, classés par quantité, par chiffre d’affaires ou par marge.'] },
   { v: '2.9.8', l: ['Caisse : remise sur le total d’une vente, en francs ou en pourcentage. Elle apparaît sur la facture et le PDF.', 'Retours : depuis une facture, bouton « Retour / remboursement ». Les articles reviennent en stock, et le client est remboursé en espèces ou le montant est déduit de ce qu’il doit.', 'Nouvel onglet « Retours » dans les Journaux, et les remboursements apparaissent dans le point de caisse.', 'Réglages : vous choisissez si la caisse peut faire des remises et enregistrer des retours (le gérant le peut toujours).'] },
   { v: '2.9.7', l: ['Facture : quand le client ne paie rien, la mention « LIVRÉ ET NON PAYÉ » apparaît sur la facture, le PDF et le message WhatsApp.', 'Facture longue : le montant total reste sur la première page, les articles continuent sur les pages suivantes.'] },

@@ -11,14 +11,69 @@
       ventes: [], achats: [], reglements: [], depenses: [], mouvements: [], retours: [] };
   };
   C.uid = function () { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); };
+
+  /* ---------- index en mémoire (vitesse) ----------
+     Les soldes et les rapports étaient recalculés à chaque affichage, en parcourant
+     toutes les ventes pour chaque client : sur une grosse boutique l'application
+     passait plus d'une seconde par écran. On les calcule maintenant en une passe et
+     on les garde jusqu'à la prochaine modification. */
+  C.rev = 0;
+  var _soldes = null, _rapports = {}, _sig = '';
+  C.touche = function () { C.rev++; _soldes = null; _rapports = {}; };
+  function signature() {
+    var d = C.db;
+    if (!d) return '';
+    return d.ventes.length + '.' + d.achats.length + '.' + d.reglements.length + '.' + d.depenses.length + '.' +
+      d.mouvements.length + '.' + d.tiers.length + '.' + d.articles.length + '.' + d.users.length + '.' + d.depots.length + '.' + d.familles.length + '.' + (d.retours || []).length + '.' + C.rev;
+  }
+  function frais() { // vide les index si la base a changé sans passer par C.touche (synchro, restauration)
+    var g = signature();
+    if (g !== _sig) { _sig = g; _soldes = null; _rapports = {}; }
+  }
+  C.sig = signature;
+  C.soldes = function () { // tous les soldes en une seule passe
+    frais();
+    if (_soldes) return _soldes;
+    var s = {}, d = C.db;
+    d.tiers.forEach(function (t) { var x = 0; (t.dettes || []).forEach(function (y) { x += y.montant; }); s[t.id] = x; });
+    d.ventes.forEach(function (v) { if (!v.annule && v.clientId && s[v.clientId] != null) s[v.clientId] += v.total - v.paye; });
+    d.achats.forEach(function (a) { if (!a.annule && a.fournisseurId && s[a.fournisseurId] != null) s[a.fournisseurId] += a.total - a.paye; });
+    C.listeRetours().forEach(function (r) { if (!r.annule && r.mode === 'avoir' && r.clientId && s[r.clientId] != null) s[r.clientId] -= r.total; });
+    d.reglements.forEach(function (r) { if (s[r.tiersId] != null) s[r.tiersId] -= r.montant; });
+    _soldes = s;
+    return s;
+  };
+  C.vieuxCredits = function () { // date du plus ancien montant encore dû, par client, en une passe
+    var parCli = {}, regle = {}, out = {};
+    function ajoute(id, date, du) { if (du > 0) (parCli[id] || (parCli[id] = [])).push({ date: date, du: du }); }
+    C.db.ventes.forEach(function (v) { if (!v.annule && v.clientId) ajoute(v.clientId, v.date, v.total - v.paye); });
+    C.db.tiers.forEach(function (t) { (t.dettes || []).forEach(function (d) { ajoute(t.id, d.date, d.montant); }); });
+    C.db.reglements.forEach(function (r) { regle[r.tiersId] = (regle[r.tiersId] || 0) + r.montant; });
+    C.listeRetours().forEach(function (r) { if (!r.annule && r.mode === 'avoir' && r.clientId) regle[r.clientId] = (regle[r.clientId] || 0) + r.total; });
+    Object.keys(parCli).forEach(function (id) {
+      var reste = regle[id] || 0, L = parCli[id].sort(function (a, b) { return a.date - b.date; });
+      for (var i = 0; i < L.length; i++) { if (reste >= L[i].du) { reste -= L[i].du; continue; } out[id] = L[i].date; return; }
+    });
+    return out;
+  };
   function err(m) { var e = new Error(m); e.metier = true; return e; }
   function par(liste, id) { for (var i = 0; i < liste.length; i++) if (liste[i].id === id) return liste[i]; return null; }
   C.par = par;
-  C.article = function (id) { return par(C.db.articles, id); };
-  C.tiers = function (id) { return par(C.db.tiers, id); };
-  C.user = function (id) { return par(C.db.users, id); };
-  C.depot = function (id) { return par(C.db.depots, id); };
-  C.famille = function (id) { return par(C.db.familles, id); };
+  /* Retrouver un article par son identifiant parcourait toute la liste : sur un rapport
+     de plusieurs milliers de lignes cela faisait des millions de comparaisons. */
+  var _idx = {}, _idxSig = null;
+  function index(nom) {
+    var g = signature();
+    if (g !== _idxSig) { _idx = {}; _idxSig = g; }
+    var m = _idx[nom];
+    if (!m) { m = _idx[nom] = Object.create(null); C.db[nom].forEach(function (x) { m[x.id] = x; }); }
+    return m;
+  }
+  C.article = function (id) { return index('articles')[id] || null; };
+  C.tiers = function (id) { return index('tiers')[id] || null; };
+  C.user = function (id) { return index('users')[id] || null; };
+  C.depot = function (id) { return index('depots')[id] || null; };
+  C.famille = function (id) { return index('familles')[id] || null; };
   C.numero = function (p) { var n = (C.db.meta.seq[p] || 0) + 1; C.db.meta.seq[p] = n; return p + '-' + String(n).padStart(5, '0'); };
   C.listeRetours = function () { return C.db.retours || (C.db.retours = []); }; // anciennes boutiques : la liste n'existe pas encore
 
@@ -26,6 +81,7 @@
   C.qte = function (aid, did) { return (C.db.stock[aid] || {})[did] || 0; };
   C.qteTot = function (aid) { var s = C.db.stock[aid] || {}, t = 0; for (var k in s) t += s[k]; return t; };
   function mouv(aid, did, qte, type, ref, userId, date, note) {
+    C.touche();
     var s = C.db.stock[aid] || (C.db.stock[aid] = {});
     s[did] = (s[did] || 0) + qte;
     C.db.mouvements.push({ id: C.uid(), date: date || Date.now(), userId: userId, articleId: aid, depotId: did, qte: qte, apres: s[did], type: type, ref: ref || '', note: note || '' });
@@ -54,6 +110,7 @@
     return m;
   };
   C.creerVente = function (o) {
+    C.touche();
     if (!o.lignes || !o.lignes.length) throw err('Ajoutez au moins un article.');
     var total = 0, besoin = {}, lignes = [];
     o.lignes.forEach(function (l) {
@@ -94,6 +151,7 @@
     return v;
   };
   C.annulerVente = function (id, userId) {
+    C.touche();
     var v = par(C.db.ventes, id);
     if (!v || v.annule) throw err('Vente déjà annulée.');
     v.annule = true; v.annulePar = userId; v.annuleLe = Date.now();
@@ -110,6 +168,7 @@
     return q;
   };
   C.retourner = function (o) {
+    C.touche();
     var v = par(C.db.ventes, o.venteId);
     if (!v) throw err('Facture introuvable.');
     if (v.annule) throw err('Cette facture est annulée : il n’y a plus rien à reprendre.');
@@ -139,6 +198,7 @@
     return r;
   };
   C.annulerRetour = function (id, userId) {
+    C.touche();
     var r = par(C.listeRetours(), id);
     if (!r || r.annule) throw err('Retour déjà annulé.');
     r.lignes.forEach(function (l) { if (!l.libre && C.qte(l.articleId, r.depotId) < l.qte) throw err('Impossible : ' + l.nom + ' est déjà reparti de ce dépôt.'); });
@@ -160,6 +220,7 @@
 
   /* ---------- achats (bons de livraison) ---------- */
   C.creerAchat = function (o) {
+    C.touche();
     if (!o.lignes || !o.lignes.length) throw err('Ajoutez au moins un article.');
     if (!o.fournisseurId) throw err('Choisissez un fournisseur.');
     var total = 0, lignes = [];
@@ -183,6 +244,7 @@
     return ac;
   };
   C.annulerAchat = function (id, userId) {
+    C.touche();
     var ac = par(C.db.achats, id);
     if (!ac || ac.annule) throw err('Achat déjà annulé.');
     ac.lignes.forEach(function (l) {
@@ -193,16 +255,9 @@
   };
 
   /* ---------- règlements, dépenses, soldes ---------- */
-  C.solde = function (tid) {
-    var t = C.tiers(tid), s = 0; if (!t) return 0;
-    if (t.type === 'client') C.db.ventes.forEach(function (v) { if (!v.annule && v.clientId === tid) s += v.total - v.paye; });
-    else C.db.achats.forEach(function (a) { if (!a.annule && a.fournisseurId === tid) s += a.total - a.paye; });
-    if (t.type === 'client') C.listeRetours().forEach(function (r) { if (!r.annule && r.mode === 'avoir' && r.clientId === tid) s -= r.total; });
-    (t.dettes || []).forEach(function (d) { s += d.montant; }); // sommes dues ajoutées à la main (dette d'avant, solde de départ…)
-    C.db.reglements.forEach(function (r) { if (r.tiersId === tid) s -= r.montant; });
-    return s;
-  };
+  C.solde = function (tid) { var s = C.soldes()[tid]; return s == null ? 0 : s; };
   C.regler = function (o) {
+    C.touche();
     var t = C.tiers(o.tiersId);
     if (!t) throw err('Tiers introuvable.');
     if (!(o.montant > 0)) throw err('Indiquez un montant.');
@@ -213,6 +268,7 @@
     return r;
   };
   C.ajouterDette = function (o) {
+    C.touche();
     var t = C.tiers(o.tiersId);
     if (!t) throw err('Tiers introuvable.');
     if (!(o.montant > 0)) throw err('Indiquez un montant.');
@@ -221,12 +277,14 @@
     return d;
   };
   C.retirerDette = function (tid, did) {
+    C.touche();
     var t = C.tiers(tid), d = t && (t.dettes || []).find(function (x) { return x.id === did; });
     if (!d) throw err('Somme introuvable.');
     if (C.solde(tid) - d.montant < 0) throw err('Impossible : des règlements ont déjà été enregistrés sur cette somme.');
     t.dettes = t.dettes.filter(function (x) { return x.id !== did; });
   };
   C.depenser = function (o) {
+    C.touche();
     if (!o.libelle) throw err('Indiquez le motif de la dépense.');
     if (!(o.montant > 0)) throw err('Indiquez un montant.');
     var d = { id: C.uid(), date: Date.now(), userId: o.userId, libelle: o.libelle, categorie: o.categorie || 'Divers', montant: o.montant };
@@ -234,7 +292,16 @@
   };
 
   /* ---------- rapports ---------- */
-  C.rapport = function (de, a, userId) {
+  C.rapport = function (de, a, userId) { // gardé en mémoire : un même écran l'appelle plusieurs fois
+    frais();
+    var k = de + '|' + a + '|' + (userId || '');
+    if (_rapports[k]) return _rapports[k];
+    var R = calculRapport(de, a, userId);
+    if (Object.keys(_rapports).length > 8) _rapports = {};
+    _rapports[k] = R;
+    return R;
+  };
+  function calculRapport(de, a, userId) {
     var db = C.db;
     function dans(x) { return x.date >= de && x.date <= a && (!userId || x.userId === userId); }
     var R = { nbVentes: 0, ca: 0, cout: 0, encVentes: 0, credit: 0, reglClients: 0, depenses: 0, payeAchats: 0, reglFourn: 0, achats: 0, nbAchats: 0,
@@ -305,7 +372,8 @@
       .sort(function (x, y) { return C.qteTot(x.id) - C.qteTot(y.id); });
   };
   C.impayes = function (type) {
-    return C.db.tiers.filter(function (t) { return t.type === type; }).map(function (t) { return { t: t, du: C.solde(t.id) }; })
+    var s = C.soldes();
+    return C.db.tiers.filter(function (t) { return t.type === type; }).map(function (t) { return { t: t, du: s[t.id] || 0 }; })
       .filter(function (x) { return x.du > 0; }).sort(function (x, y) { return y.du - x.du; });
   };
 
