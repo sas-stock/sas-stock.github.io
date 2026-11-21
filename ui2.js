@@ -167,8 +167,11 @@ V.reglages = function () {
     sect('Familles d’articles', plus('formFamille', 'Famille'), C.db.familles.length ? '<div class="liste">' + C.db.familles.map(x => '<button class="ligne" data-a="formFamille" data-id="' + x.id + '"><div class="f"><b>' + esc(x.nom) + '</b><span>' + C.db.articles.filter(a => a.familleId === x.id && a.actif !== false).length + ' article(s)</span></div></button>').join('') + '</div>' : '<div class="carte">' + vide('Aucune famille', 'Classez vos articles : matelas, tapis, lits…') + '</div>') +
     sect('Règles de vente', '', '<div class="carte"><label class="coche"><input type="checkbox" data-ch="optVSS"' + (m.opt.venteSansStock ? ' checked' : '') + '><span>Autoriser la vente d’un article même si le stock est insuffisant</span></label>' +
       '<label class="coche" style="margin:0"><input type="checkbox" data-ch="optPL"' + (m.opt.prixLibre ? ' checked' : '') + '><span>Autoriser la caisse à modifier le prix de vente</span></label></div>') + '</div>' +
-    sect('Copie de sécurité', '', '<div class="carte"><p class="petit doux" style="margin-bottom:10px">Vos données sont enregistrées en ligne sur votre compte Google et sur chaque appareil connecté. Vous pouvez en plus garder une copie dans un fichier (WhatsApp, e-mail, clé USB). ' + (m.sauvegarde ? 'Dernière copie le ' + dj(m.sauvegarde) + '.' : 'Aucune copie pour l’instant.') + '</p>' +
-      '<div class="rangee"><button class="btn p f" data-a="exporter">Enregistrer une copie</button><label class="btn f" style="cursor:pointer">Restaurer une copie<input type="file" accept=".json,application/json" data-ch="fichier" hidden></label></div></div>') +
+    sect('Copie de sécurité', '', '<div class="carte"><p class="petit doux" style="margin-bottom:10px">Vos données sont enregistrées en ligne sur votre compte Google et sur chaque appareil connecté. ' + (etat.essai ? '' : 'Vous pouvez en plus garder une copie dans un fichier (WhatsApp, e-mail, clé USB). ') + (etat.essai ? '' : m.sauvegarde ? 'Dernière copie le ' + dj(m.sauvegarde) + '.' : 'Aucune copie pour l’instant.') + '</p>' +
+      (etat.essai
+        ? '<div class="rangee"><button class="btn p f" disabled>Enregistrer une copie</button><label class="btn f" style="cursor:pointer">Restaurer une copie<input type="file" accept=".json,application/json" data-ch="fichier" hidden></label></div>'
+          + '<p class="petit doux" style="margin-top:10px">Pendant l’essai gratuit, la copie dans un fichier n’est pas disponible. Vos données restent en sécurité en ligne sur votre compte, et la copie s’ouvre dès que votre licence est activée.</p>'
+        : '<div class="rangee"><button class="btn p f" data-a="exporter">Enregistrer une copie</button><label class="btn f" style="cursor:pointer">Restaurer une copie<input type="file" accept=".json,application/json" data-ch="fichier" hidden></label></div>') + '</div>') +
     sect('Licence', '', '<button class="ligne carte" data-a="licence"><div class="f"><b>' + esc(texteLicence()) + '</b><span>' + esc(compte ? compte.email : '') + ', version ' + VERSION + '</span></div><span class="etiq">Voir</span></button>');
 };
 V.plus = function () {
@@ -208,7 +211,10 @@ function formNom(titre, liste, id, label) {
     if (id) x.nom = nom; else liste.push({ id: C.uid(), nom });
   });
 }
+/* La copie dans un fichier est réservée aux boutiques sous licence : pendant l'essai,
+   les données restent en ligne sur le compte, mais elles ne sortent pas de l'application. */
 function exporter() {
+  if (etat.essai) return toast('La copie dans un fichier est disponible une fois votre licence activée.', true);
   try {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify({ app: 'SAS STOCK', v: 1, date: Date.now(), db: C.db })], { type: 'application/json' }));

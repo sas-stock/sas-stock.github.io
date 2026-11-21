@@ -11,18 +11,22 @@ window.FB = {
   connecter: () => signInWithPopup(auth, new GoogleAuthProvider()),
   deconnecter: () => signOut(auth),
   profil: u => setDoc(doc(db, 'boutiques', u.uid), { email: u.email, nom: u.nom, vu: serverTimestamp() }, { merge: true }),
-  /* Horloge de référence et début de l'essai gratuit.
+  /* Ouverture d'une boutique : met à jour sa fiche et rend l'heure du serveur.
      « vu » est écrit par le serveur : il donne l'heure réelle, que la date du téléphone
      soit juste ou non, et il survit à l'effacement des données de l'application.
-     « essai » n'est écrit qu'une fois, à la toute première connexion de la boutique.
-     Si la lecture de la fiche boutique est refusée par les règles Firestore, on rend
-     null et l'application retombe sur son ancien garde-fou local. */
-  heure: async uid => {
-    const ref = doc(db, 'boutiques', uid);
+     « essai » n'est posé QU'À LA CRÉATION de la fiche, donc seulement pour un compte
+     Google qui n'a jamais ouvert SAS STOCK. Une boutique qui existe déjà — client sous
+     licence, licence expirée, licence jamais activée — n'en reçoit jamais : elle ne peut
+     pas se fabriquer un essai gratuit en se reconnectant.
+     Si les règles Firestore refusent la lecture, on rend null et l'application retombe
+     sur son ancien garde-fou local. */
+  ouverture: async u => {
+    const ref = doc(db, 'boutiques', u.uid);
     try {
-      await setDoc(ref, { vu: serverTimestamp() }, { merge: true });
-      let d = (await getDoc(ref)).data() || {};
-      if (!d.essai) { await setDoc(ref, { essai: serverTimestamp() }, { merge: true }); d = (await getDoc(ref)).data() || {}; }
+      const avant = await getDoc(ref);
+      if (avant.exists()) await setDoc(ref, { email: u.email, nom: u.nom, vu: serverTimestamp() }, { merge: true });
+      else await setDoc(ref, { email: u.email, nom: u.nom, vu: serverTimestamp(), essai: serverTimestamp() });
+      const d = (await getDoc(ref)).data() || {};
       const now = ms(d.vu), essai = ms(d.essai);
       return now ? { now: now, essai: essai || null } : null;
     } catch (e) { return null; }

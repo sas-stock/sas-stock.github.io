@@ -140,9 +140,9 @@ async function ouvrirCompte(u) {
   const l = await Store.get(cle('lic')); licFin = l ? l.fin : null;
   verifierLicence(); rendre();
   if (!window.FB) return;
-  FB.profil(u).catch(() => {});
-  /* Heure du serveur : elle fixe le plancher anti-recul et la date de début de l'essai. */
-  if (FB.heure) FB.heure(u.uid).then(h => {
+  /* Une seule écriture à l'ouverture : elle met la fiche à jour et rend l'heure du
+     serveur, qui fixe le plancher anti-recul et la date de début de l'essai. */
+  if (FB.ouverture) FB.ouverture(u).then(h => {
     if (!h || !compte || compte.uid !== u.uid) return;
     const av = etat.ok + '|' + etat.raison;
     lic.sol = Math.max(lic.sol || 0, h.now); lic.essai = h.essai || null; Store.set('lic', lic);
@@ -150,6 +150,7 @@ async function ouvrirCompte(u) {
     if (av !== etat.ok + '|' + etat.raison) rendre();
     demarrerSync();
   }).catch(() => {});
+  else FB.profil(u).catch(() => {});   // ancienne liaison Firebase : pas d'essai gratuit
   arretLic = FB.ecouterLicence(u.uid, fin => {
     licFin = fin; Store.set(cle('lic'), { fin });
     const av = etat.ok + '|' + etat.raison; verifierLicence();

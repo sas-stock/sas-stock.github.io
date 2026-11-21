@@ -64,7 +64,8 @@ function calculAlertes() {
         b: [[etat.essai ? 'Demander ma licence' : 'Prolonger', 'licence']] });
     // copie de sécurité
     const sv = C.db.meta.sauvegarde || 0;
-    if (C.db.ventes.length >= 20 && now - sv > 30 * J)
+    // pendant l'essai la copie dans un fichier est fermée : inutile de la réclamer
+    if (!etat.essai && C.db.ventes.length >= 20 && now - sv > 30 * J)
       L.push({ k: 'copie', sig: String(Math.floor(now / (30 * J))), n: 'info', t: sv ? 'Dernière copie de sécurité il y a ' + Math.floor((now - sv) / J) + ' jours' : 'Aucune copie de sécurité dans un fichier',
         s: 'Vos données sont en ligne, mais une copie dans un fichier (WhatsApp, clé USB) protège en plus.', b: [['Faire une copie', 'notifCopie']] });
   }
