@@ -1,6 +1,6 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.9.6', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre', 'rouleau'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.9.7', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre', 'rouleau'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
 const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
@@ -262,11 +262,12 @@ function majRes() {
   box.innerHTML = '<div class="liste">' + L.map(a => { const s = C.qte(a.id, dv.id);
     return '<button class="ligne" data-a="pAjoute" data-id="' + a.id + '"><div class="f"><b>' + esc(a.nom) + '</b><span>' + esc(a.code || '') + ' En stock : ' + F(s) + ' ' + etiqStock(a, s) + '</span></div><div class="d"><b class="n">' + M(a.pv) + '</b></div></button>'; }).join('') + horsStock + '</div>';
 }
+const nonPaye = v => !v.annule && v.total > 0 && !(v.paye > 0); // marchandise livrée sans aucun paiement
 function texteTicket(v) {
   const sh = C.db.meta.shop, c = v.clientId && C.tiers(v.clientId);
   return [sh.nom, lignesBoutique().join('\n'), 'Reçu ' + v.num + ' du ' + dh(v.date), c ? 'Client : ' + c.nom : ''].filter(Boolean).join('\n') + '\n\n' +
     v.lignes.map(l => l.nom + '\n  ' + F(l.qte) + ' x ' + F(l.pu) + ' = ' + M(l.qte * l.pu)).join('\n') + '\n\nTotal : ' + M(v.total) + '\nPayé : ' + M(v.paye) +
-    (v.total > v.paye ? '\nReste à payer : ' + M(v.total - v.paye) : '') + '\n\n' + (sh.pied || '');
+    (v.total > v.paye ? '\nReste à payer : ' + M(v.total - v.paye) : '') + (nonPaye(v) ? '\n*LIVRÉ ET NON PAYÉ*' : '') + '\n\n' + (sh.pied || '');
 }
 function lignesBoutique() { const sh = C.db.meta.shop, L = []; if (sh.activite) L.push(sh.activite); const ad = [sh.adresse, sh.ville].filter(Boolean).join(', '); if (ad) L.push(ad); const t = [sh.tel, sh.tel2].filter(Boolean).join(' / '); if (t) L.push('Tél. ' + t); if (sh.email) L.push(sh.email); if (sh.rccm) L.push('RCCM : ' + sh.rccm); if (sh.ncc) L.push('NCC : ' + sh.ncc); return L; }
 function enTeteTicket() { return '<h3>' + esc(C.db.meta.shop.nom) + '</h3>' + lignesBoutique().map(x => '<p class="ce">' + esc(x) + '</p>').join(''); }
@@ -283,7 +284,7 @@ function ticketVente(id, nouveau) {
     '<hr><div class="tl g"><span>Total</span><span class="n">' + M(v.total) + '</span></div><div class="tl"><span>Payé</span><span class="n">' + M(v.paye) + '</span></div>' +
     (v.monnaie > 0 ? '<div class="tl q"><span>Reçu ' + M(v.recu) + ', monnaie rendue</span><span class="n">' + M(v.monnaie) + '</span></div>' : '') +
     (du > 0 ? '<div class="tl gras"><span>Reste à payer</span><span class="n">' + M(du) + '</span></div>' : '') +
-    (v.annule ? '<hr><p class="ce gras">VENTE ANNULÉE</p>' : '') + '<hr><p class="ce">' + esc(C.db.meta.shop.pied || '') + '</p></div>' + boutonsTicket(texteTicket(v)) +
+    (v.annule ? '<hr><p class="ce gras">VENTE ANNULÉE</p>' : '') + (nonPaye(v) ? '<hr><p class="ce gras">LIVRÉ ET NON PAYÉ</p>' : '') + '<hr><p class="ce">' + esc(C.db.meta.shop.pied || '') + '</p></div>' + boutonsTicket(texteTicket(v)) +
     (nouveau ? '<button class="btn p large nonimp" style="margin-top:8px" data-a="fermer">Vente suivante</button>'
       : admin() && !v.annule ? '<button class="btn d large nonimp" style="margin-top:8px" data-a="annulerVente" data-id="' + v.id + '">Annuler cette vente</button>' : ''));
 }

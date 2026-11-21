@@ -66,6 +66,7 @@ function alertes() {
 }
 /* ---------- nouveautés de chaque mise à jour ---------- */
 const NOUVEAUTES = [
+  { v: '2.9.7', l: ['Facture : quand le client ne paie rien, la mention « LIVRÉ ET NON PAYÉ » apparaît sur la facture, le PDF et le message WhatsApp.', 'Facture longue : le montant total reste sur la première page, les articles continuent sur les pages suivantes.'] },
   { v: '2.9.6', l: ['Clients et fournisseurs : indiquez une somme déjà due à la création, ou ajoutez-la plus tard depuis la fiche (« Ajouter une somme due »).'] },
   { v: '2.9.5', l: ['Caisse : choisissez le dépôt d’où vous vendez (« Vendre depuis le dépôt »). Le choix est gardé sur l’appareil.', 'La recherche de la caisse montre aussi le stock des autres dépôts.', 'Transfert entre dépôts : le dépôt d’arrivée ne peut plus être le même que celui de départ.'] },
   { v: '2.9.3', l: ['Réglages > Installer l’application : téléchargez SAS STOCK pour Android ou ordinateur, ou copiez le lien pour un autre appareil.'] },

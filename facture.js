@@ -8,15 +8,20 @@ function cadreFacture(o) {
     '<div class="f-titre">' + esc(o.titre) + '</div>' + o.corps +
     '<div class="f-bas"><div>' + esc(sh.pied || '') + '</div><div class="f-sign">Signature</div></div></div>';
 }
+const PAGE1 = 22; // lignes tenant sur la première page imprimée
 const ligneTot = (l, m, g) => '<tr' + (g ? ' class="g"' : '') + '><td>' + l + '</td><td class="n">' + m + '</td></tr>';
 function ticketVente(id, nouveau) {
   const v = C.par(C.db.ventes, id), c = v.clientId && C.tiers(v.clientId), du = v.total - v.paye;
-  const corps = '<table class="f-tab"><thead><tr><th>Désignation des produits</th><th>Quantité</th><th>Unité</th><th>Prix unitaire</th><th>Total</th></tr></thead><tbody>' +
-    v.lignes.map(l => { const a = C.article(l.articleId) || {}; return '<tr><td>' + esc(l.nom) + '</td><td class="c n">' + F(l.qte) + '</td><td class="c">' + esc(a.unite || 'pièce') + '</td><td class="d n">' + M(l.pu) + '</td><td class="d n">' + M(l.qte * l.pu) + '</td></tr>'; }).join('') +
-    (v.lignes.length < 8 ? '<tr class="vide"><td></td><td></td><td></td><td></td><td></td></tr>' : '') + '</tbody></table>' +
-    '<table class="f-tot">' + ligneTot('Montant payé', M(v.paye)) + (v.monnaie > 0 ? ligneTot('Monnaie rendue', M(v.monnaie)) : '') + (du > 0 ? ligneTot('Reste à payer', M(du)) : '') + ligneTot('Total', M(v.total), 1) + '</table>';
+  const THEAD = '<thead><tr><th>Désignation des produits</th><th>Quantité</th><th>Unité</th><th>Prix unitaire</th><th>Total</th></tr></thead>';
+  const LN = v.lignes.map(l => { const a = C.article(l.articleId) || {}; return '<tr><td>' + esc(l.nom) + '</td><td class="c n">' + F(l.qte) + '</td><td class="c">' + esc(a.unite || 'pièce') + '</td><td class="d n">' + M(l.pu) + '</td><td class="d n">' + M(l.qte * l.pu) + '</td></tr>'; });
+  const TOT = '<table class="f-tot">' + ligneTot('Montant payé', M(v.paye)) + (v.monnaie > 0 ? ligneTot('Monnaie rendue', M(v.monnaie)) : '') + (du > 0 ? ligneTot('Reste à payer', M(du)) : '') + ligneTot('Total', M(v.total), 1) + '</table>' +
+    (nonPaye(v) ? '<div class="f-tampon">Livré et non payé</div>' : '');
+  const tab = (ls, vide) => '<table class="f-tab">' + THEAD + '<tbody>' + ls.join('') + (vide ? '<tr class="vide"><td></td><td></td><td></td><td></td><td></td></tr>' : '') + '</tbody></table>';
+  // facture longue : à l'impression le total reste sur la première page, les articles continuent après
+  const corps = LN.length > PAGE1 ? tab(LN.slice(0, PAGE1)) + '<div class="f-tot1">' + TOT + '</div>' + tab(LN.slice(PAGE1)) + '<div class="f-tot2">' + TOT + '</div>'
+    : tab(LN, LN.length < 8) + TOT;
   ouvrir(nouveau ? 'Vente enregistrée' : 'Vente ' + v.num, cadreFacture({
-    infos: [['Date d’émission', dj(v.date)], ['Émis par', (C.user(v.userId) || {}).nom || ''], ['Mode de paiement', (du > 0 ? (v.paye > 0 ? 'Acompte, reste à crédit' : 'À crédit') : 'Comptant') + (v.paye > 0 && v.mode ? ' (' + v.mode + ')' : '')]].concat(v.numAvant ? [['N° provisoire', v.numAvant]] : [], v.remplace ? [['Remplace la facture', v.remplace]] : [], v.remplaceePar ? [['Remplacée par', v.remplaceePar]] : []),
+    infos: [['Date d’émission', dj(v.date)], ['Émis par', (C.user(v.userId) || {}).nom || ''], ['Mode de paiement', (du > 0 ? (v.paye > 0 ? 'Acompte, reste à crédit' : 'Livré et non payé') : 'Comptant') + (v.paye > 0 && v.mode ? ' (' + v.mode + ')' : '')]].concat(v.numAvant ? [['N° provisoire', v.numAvant]] : [], v.remplace ? [['Remplace la facture', v.remplace]] : [], v.remplaceePar ? [['Remplacée par', v.remplaceePar]] : []),
     dest: c ? [c.nom, c.tel] : ['Client de passage'], titre: 'Facture n° ' + v.num + (v.annule ? ' (annulée)' : ''), corps }) + boutonsTicket(texteTicket(v)) +
     (nouveau ? '<button class="btn p large nonimp" style="margin-top:8px" data-a="fermer">Vente suivante</button>'
       : admin() && !v.annule ? '<button class="btn p large nonimp" style="margin-top:8px" data-a="corrigerVente" data-id="' + v.id + '">Corriger cette vente</button><button class="btn d large nonimp" style="margin-top:8px" data-a="annulerVente" data-id="' + v.id + '">Annuler cette vente</button>' : ''));

@@ -164,7 +164,7 @@ function pdfFacture(v) {
   if (logo) { let hh = 64, ww = logo.w * hh / logo.h; if (ww > 130) { ww = 130; hh = logo.h * ww / logo.w; } ops.push('q ' + f2(ww) + ' 0 0 ' + f2(hh) + ' ' + mg + ' ' + f2(y - hh) + ' cm /Im1 Do Q'); xT = mg + ww + 14; hLogo = hh; }
   let yT = y - 15; txt(sh.nom, xT, yT, 15, 1); lignesBoutique().forEach(l => { yT -= 12; txt(l, xT, yT, 9); });
   y = Math.min(yT - 8, y - hLogo) - 18;
-  const infos = [['Date d’émission', dj(v.date)], ['Émis par', (C.user(v.userId) || {}).nom || ''], ['Mode de paiement', (du > 0 ? (v.paye > 0 ? 'Acompte, reste à crédit' : 'À crédit') : 'Comptant') + (v.paye > 0 && v.mode ? ' (' + v.mode + ')' : '')]]
+  const infos = [['Date d’émission', dj(v.date)], ['Émis par', (C.user(v.userId) || {}).nom || ''], ['Mode de paiement', (du > 0 ? (v.paye > 0 ? 'Acompte, reste à crédit' : 'Livré et non payé') : 'Comptant') + (v.paye > 0 && v.mode ? ' (' + v.mode + ')' : '')]]
     .concat(v.numAvant ? [['N° provisoire', v.numAvant]] : [], v.remplace ? [['Remplace la facture', v.remplace]] : [], v.remplaceePar ? [['Remplacée par', v.remplaceePar]] : []);
   const hI = infos.length * 14 + 8;
   rect(mg, y - hI, 285, hI, '0.93 0.94 0.93');
@@ -180,22 +180,29 @@ function pdfFacture(v) {
   const cel = (s, i, yy) => { const k = cols[i]; if (k[2] === 'c') txt(s, xs[i] + k[0] / 2, yy, 9, 0, 'c'); else if (k[2] === 'd') txt(s, xs[i] + k[0] - 5, yy, 9, 0, 'd'); else txt(s, xs[i] + 5, yy, 9); };
   entete();
   const traits = !!(C.db.meta.opt && C.db.meta.opt.traitsFact);
+  const tots = [['Montant payé', M(v.paye)]].concat(v.monnaie > 0 ? [['Monnaie rendue', M(v.monnaie)]] : [], du > 0 ? [['Reste à payer', M(du)]] : []);
+  const hTot = tots.length * 16 + 110;
+  /* bloc des totaux : toujours sur la première page, même si les articles continuent après */
+  const blocTotaux = () => {
+    y -= 20; const xL = W - mg - 230;
+    if (nonPaye(v)) { const tt = 'LIVRÉ ET NON PAYÉ', lw = largeur(tt, 14, 1) + 24; ops.push('q 0.75 0.09 0.09 RG 1.8 w ' + f2(mg) + ' ' + f2(y - 20) + ' ' + f2(lw) + ' 32 re S Q'); txt(tt, mg + 12, y - 8, 14, 1, 0, '0.75 0.09 0.09'); }
+    tots.forEach(t => { txt(t[0], xL, y, 10); txt(t[1], W - mg, y, 10, 0, 'd'); y -= 16; });
+    trait(xL - 4, y + 10, W - mg, y + 10, 0.9); y -= 6;
+    txt('Total', xL, y, 13, 1); txt(M(v.total), W - mg, y, 13, 1, 'd');
+    y -= 42; txt(sh.pied || '', mg, y, 9); txt('Signature', W - mg - 70, y, 9);
+  };
+  let totFait = false;
+  const suite = () => { page(); txt('Facture n° ' + v.num + ' (suite)', mg, y - 13, 11, 1); y -= 28; entete(); };
   v.lignes.forEach(l => {
     const a = C.article(l.articleId) || {}, T = couper(l.nom, 9, cols[0][0] - 10), h = 7 + T.length * 11;
-    if (y - h < bas) { fin(); page(); entete(); }
+    if (y - h < (totFait ? bas : bas + hTot)) { fin(); if (!totFait) { blocTotaux(); totFait = true; } suite(); }
     T.forEach((t, k) => txt(t, xs[0] + 5, y - 12 - k * 11, 9));
     cel(F(l.qte), 1, y - 12); cel(a.unite || 'pièce', 2, y - 12); cel(M(l.pu), 3, y - 12); cel(M(l.qte * l.pu), 4, y - 12);
     y -= h; if (traits) trait(mg, y, mg + LT, y, 0.5);
   });
   if (v.lignes.length < 8) y -= 60;
   fin();
-  const tots = [['Montant payé', M(v.paye)]].concat(v.monnaie > 0 ? [['Monnaie rendue', M(v.monnaie)]] : [], du > 0 ? [['Reste à payer', M(du)]] : []);
-  if (y - (tots.length * 16 + 90) < bas) page();
-  y -= 20; const xL = W - mg - 230;
-  tots.forEach(t => { txt(t[0], xL, y, 10); txt(t[1], W - mg, y, 10, 0, 'd'); y -= 16; });
-  trait(xL - 4, y + 10, W - mg, y + 10, 0.9); y -= 6;
-  txt('Total', xL, y, 13, 1); txt(M(v.total), W - mg, y, 13, 1, 'd');
-  y -= 42; txt(sh.pied || '', mg, y, 9); txt('Signature', W - mg - 70, y, 9);
+  if (!totFait) blocTotaux();
   pages.forEach((p, i) => { ops = p; txt('Page ' + (i + 1) + ' / ' + pages.length, W / 2, 24, 8, 0, 'c', '0.4 0.4 0.4'); });
   return assemblerPdf(pages, W, H, logo);
 }
