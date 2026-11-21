@@ -2,17 +2,17 @@
 'use strict';
 let compte = null, licFin = null, syncEtat = 'attente', sy = { h: {}, last: 0, init: false }, arret = null, arretLic = null, tPousse = null, enPousse = false, encore = false;
 const cle = n => n + '_' + compte.uid;
-const LISTES = { a: 'articles', t: 'tiers', v: 'ventes', c: 'achats', r: 'reglements', e: 'depenses', m: 'mouvements' };
+const LISTES = { a: 'articles', t: 'tiers', v: 'ventes', c: 'achats', r: 'reglements', e: 'depenses', m: 'mouvements', x: 'retours' };
 function hache(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return s.length + ':' + h; }
 function entites() {
   const d = C.db, o = new Map();
   if (d.users.length) o.set('cfg', JSON.stringify({ shop: d.meta.shop, opt: d.meta.opt, users: d.users, depots: d.depots, familles: d.familles }));
-  for (const p in LISTES) d[LISTES[p]].forEach(x => o.set(p + '_' + x.id, JSON.stringify(x)));
+  for (const p in LISTES) (d[LISTES[p]] || []).forEach(x => o.set(p + '_' + x.id, JSON.stringify(x)));
   return o;
 }
 function dedoublonner(d) { // deux appareils hors ligne peuvent créer le même numéro : le plus ancien le garde, l'autre reçoit le suivant (même résultat sur tous les appareils)
   let modif = false;
-  [['V', 'ventes'], ['A', 'achats'], ['R', 'reglements']].forEach(p => {
+  [['V', 'ventes'], ['A', 'achats'], ['R', 'reglements'], ['T', 'retours']].forEach(p => {
     const vus = new Set();
     d[p[1]].slice().sort((x, y) => x.date - y.date || (x.id < y.id ? -1 : 1)).forEach(x => {
       if (!vus.has(x.num)) { vus.add(x.num); return; }
@@ -24,6 +24,7 @@ function dedoublonner(d) { // deux appareils hors ligne peuvent créer le même 
 }
 function appliquer(docs) {
   let change = false; const d = C.db;
+  if (!d.retours) d.retours = [];
   docs.forEach(x => {
     if (x.m > sy.last) sy.last = x.m;
     const h = x.j == null ? null : hache(x.j);
@@ -35,9 +36,9 @@ function appliquer(docs) {
     if (h === null) { if (i >= 0) L.splice(i, 1); } else if (i >= 0) L[i] = JSON.parse(x.j); else L.push(JSON.parse(x.j));
   });
   if (!change) return false;
-  ['ventes', 'achats', 'reglements', 'depenses', 'mouvements'].forEach(l => d[l].sort((a, b) => a.date - b.date));
+  ['ventes', 'achats', 'reglements', 'depenses', 'mouvements', 'retours'].forEach(l => d[l].sort((a, b) => a.date - b.date));
   const s = {}; d.mouvements.forEach(m => { const a = s[m.articleId] || (s[m.articleId] = {}); a[m.depotId] = (a[m.depotId] || 0) + m.qte; }); d.stock = s;
-  [['V', 'ventes'], ['A', 'achats'], ['R', 'reglements']].forEach(p => d[p[1]].forEach(y => { const n = parseInt(String(y.num).split('-')[1], 10); if (n > d.meta.seq[p[0]]) d.meta.seq[p[0]] = n; }));
+  [['V', 'ventes'], ['A', 'achats'], ['R', 'reglements'], ['T', 'retours']].forEach(p => d[p[1]].forEach(y => { const n = parseInt(String(y.num).split('-')[1], 10); if (n > (d.meta.seq[p[0]] || 0)) d.meta.seq[p[0]] = n; }));
   if (dedoublonner(d)) setTimeout(pousser, 50);
   if (S.user) { const u = C.user(S.user.id); if (!u || u.actif === false) S.user = null; else S.user = u; }
   return true;
@@ -103,6 +104,7 @@ async function ouvrirCompte(u) {
   if (!u) { C.db = C.vide(); sy = { h: {}, last: 0, init: false }; etat = { ok: false, raison: 'compte' }; rendre(); return; }
   Store.set('dernier', u);
   C.db = (await Store.get(cle('db'))) || C.vide();
+  if (!C.db.retours) C.db.retours = []; // boutique créée avant les retours
   sy = (await Store.get(cle('sync'))) || { h: {}, last: 0, init: false };
   const l = await Store.get(cle('lic')); licFin = l ? l.fin : null;
   verifierLicence(); rendre();

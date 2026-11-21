@@ -259,7 +259,7 @@ const A = {
   pLibre: () => { const q = ($('#rech') || {}).value || ''; if (!q.trim()) return; S.panier.lignes.push({ articleId: '', libre: true, nom: q.trim(), qte: 1, pu: NaN }); rendre(); const ins = document.querySelectorAll('.panier [data-in=pp]'); const i = ins[ins.length - 1]; if (i) try { i.focus(); } catch (e) {} },
   corrigerVente: d => { const v = C.par(C.db.ventes, d.id); if (!v || v.annule || !admin()) return;
     confirmer('Corriger la facture ' + v.num, 'Tous les articles de cette facture vont revenir dans la caisse. Changez seulement ce qui est faux, puis validez : l’ancienne facture sera annulée et remplacée. Si vous abandonnez, rien ne change.' + (S.panier.lignes.length && !S.panier.remplace ? ' Le panier en cours sera vidé.' : ''), 'Corriger', () => {
-      S.panier = { lignes: v.lignes.map(l => l.libre ? { articleId: '', libre: true, nom: l.nom, qte: l.qte, pu: l.pu } : { articleId: l.articleId, qte: l.qte, pu: l.pu, lot: l.lot }), clientId: v.clientId || '', recu: v.paye < v.total ? v.paye : null, remplace: v.id, remplaceNum: v.num, mode: v.mode || 'Espèces' };
+      S.panier = { lignes: v.lignes.map(l => l.libre ? { articleId: '', libre: true, nom: l.nom, qte: l.qte, pu: l.pu } : { articleId: l.articleId, qte: l.qte, pu: l.pu, lot: l.lot }), clientId: v.clientId || '', recu: v.paye < v.total ? v.paye : null, remplace: v.id, remplaceNum: v.num, mode: v.mode || 'Espèces', remise: v.remise > 0 ? { t: v.remiseP ? 'p' : 'f', v: v.remiseP || v.remise } : { t: 'f', v: 0 } };
       aller('caisse'); }); },
   pAbandon: () => { S.panier = panierVide(); rendre(); toast('Correction abandonnée : la facture n’a pas changé'); },
   pRetire: (d, el) => { S.panier.lignes.splice(+el.closest('.pl').dataset.i, 1); rendre(); },

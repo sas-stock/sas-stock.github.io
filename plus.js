@@ -72,7 +72,7 @@ A.pMoins = (d, el) => pasQte(el, -1);
 CH.pMode = v => { S.panier.mode = v; };
 A.pValider = () => {
   const p = S.panier;
-  const o = { lignes: p.lignes.map(l => ({ articleId: l.articleId, libre: l.libre, nom: l.nom, qte: l.qte, pu: l.pu })), clientId: p.clientId, recu: p.recu, mode: p.mode || 'Espèces', userId: S.user.id, depotId: depotVente().id };
+  const o = { lignes: p.lignes.map(l => ({ articleId: l.articleId, libre: l.libre, nom: l.nom, qte: l.qte, pu: l.pu })), clientId: p.clientId, recu: p.recu, mode: p.mode || 'Espèces', userId: S.user.id, depotId: depotVente().id, remise: p.remise };
   const v = agir(() => p.remplace ? C.remplacerVente(p.remplace, o) : C.creerVente(o));
   if (v) { S.panier = panierVide(); rendre(); ticketVente(v.id, true); if (v.remplace) toast('Facture ' + v.num + ' émise : elle remplace ' + v.remplace); }
 };
@@ -180,7 +180,7 @@ function pdfFacture(v) {
   const cel = (s, i, yy) => { const k = cols[i]; if (k[2] === 'c') txt(s, xs[i] + k[0] / 2, yy, 9, 0, 'c'); else if (k[2] === 'd') txt(s, xs[i] + k[0] - 5, yy, 9, 0, 'd'); else txt(s, xs[i] + 5, yy, 9); };
   entete();
   const traits = !!(C.db.meta.opt && C.db.meta.opt.traitsFact);
-  const tots = [['Montant payé', M(v.paye)]].concat(v.monnaie > 0 ? [['Monnaie rendue', M(v.monnaie)]] : [], du > 0 ? [['Reste à payer', M(du)]] : []);
+  const tots = (v.remise > 0 ? [['Sous-total', M(v.brut)], ['Remise' + (v.remiseP ? ' (' + v.remiseP + ' %)' : ''), '-' + M(v.remise)]] : []).concat([['Montant payé', M(v.paye)]], v.monnaie > 0 ? [['Monnaie rendue', M(v.monnaie)]] : [], du > 0 ? [['Reste à payer', M(du)]] : []);
   const hTot = tots.length * 16 + 110;
   /* bloc des totaux : toujours sur la première page, même si les articles continuent après */
   const blocTotaux = () => {

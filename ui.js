@@ -1,6 +1,6 @@
 /* SAS STOCK — interface (1/2) : base, entrée, caisse, stock */
 'use strict';
-const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.9.7', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre', 'rouleau'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
+const PUB = '2116e0b208d4db7cfce3401dc53b81191723cdcb91f21d4fd3973a175b655a2e2ac8d562e0c01024b5a374ecc614a3cb4bffdd064dce394bf091721d60fa62f0', VERSION = '2.9.8', UNITES = ['pièce', 'paire', 'jeu', 'carton', 'paquet', 'sac', 'litre', 'bidon', 'kg', 'mètre', 'rouleau'], REVENDEUR = { nom: 'SAS TECH', tel: '07 48 67 13 34', tel2: '+2250748671334', mail: 'sanogo2souleymane@gmail.com' };
 const MAITRE = 'b61a3f9ceba6d66975dac91b63733da83c8f90570d41c820e15b791c21f6ae49';
 const C = CORE;
 let lic = {}, etat = { ok: false, raison: 'aucune' };
@@ -227,7 +227,9 @@ function chercheArticles(q, limite) {
   const mots = q.split(/\s+/);
   return C.db.articles.filter(a => a.actif !== false && mots.every(m => sansAccent(a.nom + ' ' + (a.code || '')).indexOf(m) >= 0)).slice(0, limite || 8);
 }
-function totalPanier(p) { return p.lignes.reduce((s, l) => s + (l.qte > 0 && l.pu >= 0 ? l.qte * l.pu : 0), 0); }
+function brutPanier(p) { return p.lignes.reduce((s, l) => s + (l.qte > 0 && l.pu >= 0 ? l.qte * l.pu : 0), 0); }
+function remisePanier(p) { const b = brutPanier(p), r = p && p.remise; if (!r || !(r.v > 0)) return 0; return Math.min(b, Math.round(r.t === 'p' ? b * Math.min(100, r.v) / 100 : r.v)); }
+function totalPanier(p) { return brutPanier(p) - remisePanier(p); }
 V.caisse = function () {
   const p = S.panier, dv = depotVente(), libre = admin() || C.db.meta.opt.prixLibre, tot = totalPanier(p);
   const clients = C.db.tiers.filter(t => t.type === 'client').sort((a, b) => a.nom.localeCompare(b.nom));
@@ -246,7 +248,7 @@ V.caisse = function () {
 };
 function majCaisse() {
   const p = S.panier, tot = totalPanier(p);
-  document.querySelectorAll('.panier .pl').forEach(el => { const l = p.lignes[+el.dataset.i]; $('[data-lt]', el).textContent = M(l.qte > 0 && l.pu >= 0 ? l.qte * l.pu : 0); });
+  document.querySelectorAll('#app .panier .pl').forEach(el => { const l = p.lignes[+el.dataset.i], c = $('[data-lt]', el); if (l && c) c.textContent = M(l.qte > 0 && l.pu >= 0 ? l.qte * l.pu : 0); });
   const t = $('#ctot'); if (!t) return;
   t.textContent = M(tot); $('#precu').placeholder = F(tot) + ' (tout est payé)';
   const i = $('#cinfo'), r = p.recu;
@@ -267,7 +269,7 @@ function texteTicket(v) {
   const sh = C.db.meta.shop, c = v.clientId && C.tiers(v.clientId);
   return [sh.nom, lignesBoutique().join('\n'), 'Reçu ' + v.num + ' du ' + dh(v.date), c ? 'Client : ' + c.nom : ''].filter(Boolean).join('\n') + '\n\n' +
     v.lignes.map(l => l.nom + '\n  ' + F(l.qte) + ' x ' + F(l.pu) + ' = ' + M(l.qte * l.pu)).join('\n') + '\n\nTotal : ' + M(v.total) + '\nPayé : ' + M(v.paye) +
-    (v.total > v.paye ? '\nReste à payer : ' + M(v.total - v.paye) : '') + (nonPaye(v) ? '\n*LIVRÉ ET NON PAYÉ*' : '') + '\n\n' + (sh.pied || '');
+    (v.remise > 0 ? '\nRemise : -' + M(v.remise) : '') + (v.total > v.paye ? '\nReste à payer : ' + M(v.total - v.paye) : '') + (nonPaye(v) ? '\n*LIVRÉ ET NON PAYÉ*' : '') + '\n\n' + (sh.pied || '');
 }
 function lignesBoutique() { const sh = C.db.meta.shop, L = []; if (sh.activite) L.push(sh.activite); const ad = [sh.adresse, sh.ville].filter(Boolean).join(', '); if (ad) L.push(ad); const t = [sh.tel, sh.tel2].filter(Boolean).join(' / '); if (t) L.push('Tél. ' + t); if (sh.email) L.push(sh.email); if (sh.rccm) L.push('RCCM : ' + sh.rccm); if (sh.ncc) L.push('NCC : ' + sh.ncc); return L; }
 function enTeteTicket() { return '<h3>' + esc(C.db.meta.shop.nom) + '</h3>' + lignesBoutique().map(x => '<p class="ce">' + esc(x) + '</p>').join(''); }
@@ -281,7 +283,7 @@ function ticketVente(id, nouveau) {
   ouvrir(nouveau ? 'Vente enregistrée' : 'Vente ' + v.num, '<div class="ticket">' + enTeteTicket() + '<hr><div class="tl"><span>Reçu ' + v.num + '</span><span>' + dh(v.date) + '</span></div>' +
     '<div class="tl q"><span>' + esc(c ? 'Client : ' + c.nom : 'Client de passage') + '</span><span>' + esc((C.user(v.userId) || {}).nom || '') + '</span></div><hr>' +
     v.lignes.map(l => '<div>' + esc(l.nom) + '</div><div class="tl q"><span class="n">' + F(l.qte) + ' × ' + F(l.pu) + '</span><span class="n">' + M(l.qte * l.pu) + '</span></div>').join('') +
-    '<hr><div class="tl g"><span>Total</span><span class="n">' + M(v.total) + '</span></div><div class="tl"><span>Payé</span><span class="n">' + M(v.paye) + '</span></div>' +
+    '<hr>' + (v.remise > 0 ? '<div class="tl"><span>Sous-total</span><span class="n">' + M(v.brut) + '</span></div><div class="tl"><span>Remise' + (v.remiseP ? ' (' + F(v.remiseP) + ' %)' : '') + '</span><span class="n">-' + M(v.remise) + '</span></div>' : '') + '<div class="tl g"><span>Total</span><span class="n">' + M(v.total) + '</span></div><div class="tl"><span>Payé</span><span class="n">' + M(v.paye) + '</span></div>' +
     (v.monnaie > 0 ? '<div class="tl q"><span>Reçu ' + M(v.recu) + ', monnaie rendue</span><span class="n">' + M(v.monnaie) + '</span></div>' : '') +
     (du > 0 ? '<div class="tl gras"><span>Reste à payer</span><span class="n">' + M(du) + '</span></div>' : '') +
     (v.annule ? '<hr><p class="ce gras">VENTE ANNULÉE</p>' : '') + (nonPaye(v) ? '<hr><p class="ce gras">LIVRÉ ET NON PAYÉ</p>' : '') + '<hr><p class="ce">' + esc(C.db.meta.shop.pied || '') + '</p></div>' + boutonsTicket(texteTicket(v)) +

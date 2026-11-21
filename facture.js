@@ -14,7 +14,7 @@ function ticketVente(id, nouveau) {
   const v = C.par(C.db.ventes, id), c = v.clientId && C.tiers(v.clientId), du = v.total - v.paye;
   const THEAD = '<thead><tr><th>Désignation des produits</th><th>Quantité</th><th>Unité</th><th>Prix unitaire</th><th>Total</th></tr></thead>';
   const LN = v.lignes.map(l => { const a = C.article(l.articleId) || {}; return '<tr><td>' + esc(l.nom) + '</td><td class="c n">' + F(l.qte) + '</td><td class="c">' + esc(a.unite || 'pièce') + '</td><td class="d n">' + M(l.pu) + '</td><td class="d n">' + M(l.qte * l.pu) + '</td></tr>'; });
-  const TOT = '<table class="f-tot">' + ligneTot('Montant payé', M(v.paye)) + (v.monnaie > 0 ? ligneTot('Monnaie rendue', M(v.monnaie)) : '') + (du > 0 ? ligneTot('Reste à payer', M(du)) : '') + ligneTot('Total', M(v.total), 1) + '</table>' +
+  const TOT = '<table class="f-tot">' + (v.remise > 0 ? ligneTot('Sous-total', M(v.brut)) + ligneTot('Remise' + (v.remiseP ? ' (' + F(v.remiseP) + ' %)' : ''), '-' + M(v.remise)) : '') + ligneTot('Montant payé', M(v.paye)) + (v.monnaie > 0 ? ligneTot('Monnaie rendue', M(v.monnaie)) : '') + (du > 0 ? ligneTot('Reste à payer', M(du)) : '') + ligneTot('Total', M(v.total), 1) + '</table>' +
     (nonPaye(v) ? '<div class="f-tampon">Livré et non payé</div>' : '');
   const tab = (ls, vide) => '<table class="f-tab">' + THEAD + '<tbody>' + ls.join('') + (vide ? '<tr class="vide"><td></td><td></td><td></td><td></td><td></td></tr>' : '') + '</tbody></table>';
   // facture longue : à l'impression le total reste sur la première page, les articles continuent après

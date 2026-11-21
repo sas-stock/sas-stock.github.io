@@ -66,6 +66,7 @@ function alertes() {
 }
 /* ---------- nouveautés de chaque mise à jour ---------- */
 const NOUVEAUTES = [
+  { v: '2.9.8', l: ['Caisse : remise sur le total d’une vente, en francs ou en pourcentage. Elle apparaît sur la facture et le PDF.', 'Retours : depuis une facture, bouton « Retour / remboursement ». Les articles reviennent en stock, et le client est remboursé en espèces ou le montant est déduit de ce qu’il doit.', 'Nouvel onglet « Retours » dans les Journaux, et les remboursements apparaissent dans le point de caisse.', 'Réglages : vous choisissez si la caisse peut faire des remises et enregistrer des retours (le gérant le peut toujours).'] },
   { v: '2.9.7', l: ['Facture : quand le client ne paie rien, la mention « LIVRÉ ET NON PAYÉ » apparaît sur la facture, le PDF et le message WhatsApp.', 'Facture longue : le montant total reste sur la première page, les articles continuent sur les pages suivantes.'] },
   { v: '2.9.6', l: ['Clients et fournisseurs : indiquez une somme déjà due à la création, ou ajoutez-la plus tard depuis la fiche (« Ajouter une somme due »).'] },
   { v: '2.9.5', l: ['Caisse : choisissez le dépôt d’où vous vendez (« Vendre depuis le dépôt »). Le choix est gardé sur l’appareil.', 'La recherche de la caisse montre aussi le stock des autres dépôts.', 'Transfert entre dépôts : le dépôt d’arrivée ne peut plus être le même que celui de départ.'] },

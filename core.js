@@ -6,9 +6,9 @@
   C.vide = function () {
     return { v: 1,
       meta: { shop: { nom: '', tel: '', adresse: '', pied: 'Merci de votre confiance.' },
-              opt: { venteSansStock: false, prixLibre: false }, seq: { V: 0, A: 0, R: 0 }, sauvegarde: 0, cree: Date.now() },
+              opt: { venteSansStock: false, prixLibre: false, remiseCaisse: false }, seq: { V: 0, A: 0, R: 0, T: 0 }, sauvegarde: 0, cree: Date.now() },
       users: [], depots: [], familles: [], articles: [], stock: {}, tiers: [],
-      ventes: [], achats: [], reglements: [], depenses: [], mouvements: [] };
+      ventes: [], achats: [], reglements: [], depenses: [], mouvements: [], retours: [] };
   };
   C.uid = function () { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); };
   function err(m) { var e = new Error(m); e.metier = true; return e; }
@@ -19,7 +19,8 @@
   C.user = function (id) { return par(C.db.users, id); };
   C.depot = function (id) { return par(C.db.depots, id); };
   C.famille = function (id) { return par(C.db.familles, id); };
-  C.numero = function (p) { var n = ++C.db.meta.seq[p]; return p + '-' + String(n).padStart(5, '0'); };
+  C.numero = function (p) { var n = (C.db.meta.seq[p] || 0) + 1; C.db.meta.seq[p] = n; return p + '-' + String(n).padStart(5, '0'); };
+  C.listeRetours = function () { return C.db.retours || (C.db.retours = []); }; // anciennes boutiques : la liste n'existe pas encore
 
   /* ---------- stock ---------- */
   C.qte = function (aid, did) { return (C.db.stock[aid] || {})[did] || 0; };
@@ -45,6 +46,13 @@
   };
 
   /* ---------- ventes ---------- */
+  C.calcRemise = function (brut, r) { // r = { t: 'f' (francs) ou 'p' (pourcentage), v: valeur }
+    if (!r || !(r.v > 0)) return 0;
+    if (r.t === 'p' && r.v > 100) throw err('La remise ne peut pas dépasser 100 %.');
+    var m = Math.round(r.t === 'p' ? brut * r.v / 100 : r.v);
+    if (m > brut) throw err('La remise (' + m + ') dépasse le montant de la vente (' + brut + ').');
+    return m;
+  };
   C.creerVente = function (o) {
     if (!o.lignes || !o.lignes.length) throw err('Ajoutez au moins un article.');
     var total = 0, besoin = {}, lignes = [];
@@ -70,12 +78,15 @@
       var dispo = C.qte(aid, o.depotId);
       if (dispo < besoin[aid]) throw err('Stock insuffisant pour ' + C.article(aid).nom + ' : ' + dispo + ' disponible(s).');
     }
+    var brut = total, rem = C.calcRemise(brut, o.remise);
+    total = brut - rem;
     var recu = o.recu == null ? total : o.recu;
     if (!(recu >= 0)) throw err('Montant reçu invalide.');
     var paye = Math.min(recu, total);
     if (paye < total && !o.clientId) throw err('Vente à crédit : choisissez un client pour suivre son impayé.');
     var v = { id: C.uid(), num: C.numero('V'), date: o.date || Date.now(), userId: o.userId, clientId: o.clientId || '', depotId: o.depotId,
               lignes: lignes, total: total, paye: paye, recu: recu, monnaie: Math.max(0, recu - total), annule: false };
+    if (rem > 0) { v.brut = brut; v.remise = rem; if (o.remise && o.remise.t === 'p') v.remiseP = o.remise.v; }
     if (o.remplace) v.remplace = o.remplace;
     if (paye > 0) v.mode = o.mode || 'Espèces';
     lignes.forEach(function (l) { if (!l.libre) mouv(l.articleId, o.depotId, -l.qte, 'vente', v.num, o.userId, v.date); });
@@ -87,6 +98,52 @@
     if (!v || v.annule) throw err('Vente déjà annulée.');
     v.annule = true; v.annulePar = userId; v.annuleLe = Date.now();
     v.lignes.forEach(function (l) { if (!l.libre) mouv(l.articleId, v.depotId, l.qte, 'annulation', v.num, userId); });
+  };
+
+  /* ---------- retours et remboursements ---------- */
+  C.dejaRetourne = function (vid) { // quantités déjà reprises, par numéro de ligne de la facture
+    var q = {};
+    C.listeRetours().forEach(function (r) {
+      if (r.annule || r.venteId !== vid) return;
+      r.lignes.forEach(function (l) { q[l.i] = (q[l.i] || 0) + l.qte; });
+    });
+    return q;
+  };
+  C.retourner = function (o) {
+    var v = par(C.db.ventes, o.venteId);
+    if (!v) throw err('Facture introuvable.');
+    if (v.annule) throw err('Cette facture est annulée : il n’y a plus rien à reprendre.');
+    var deja = C.dejaRetourne(v.id), brut = 0, lignes = [];
+    (o.lignes || []).forEach(function (x) {
+      var l = v.lignes[x.i];
+      if (!l) throw err('Ligne introuvable sur la facture.');
+      if (!(x.qte > 0)) return;
+      var reste = l.qte - (deja[x.i] || 0);
+      if (x.qte > reste) throw err('Pour ' + l.nom + ' : ' + reste + ' au maximum (le reste a déjà été repris).');
+      brut += x.qte * l.pu;
+      lignes.push({ i: x.i, articleId: l.articleId, libre: !!l.libre, nom: l.nom, qte: x.qte, pu: l.pu, pa: l.pa || 0 });
+    });
+    if (!lignes.length) throw err('Indiquez la quantité reprise pour au moins un article.');
+    var total = v.remise > 0 && v.brut > 0 ? Math.round(brut * v.total / v.brut) : brut; // la remise de la facture s'applique aussi au retour
+    var mode = o.mode === 'avoir' ? 'avoir' : 'espece';
+    if (mode === 'avoir') {
+      if (!v.clientId) throw err('Sans client enregistré, le remboursement doit se faire en espèces.');
+      var du = C.solde(v.clientId);
+      if (du <= 0) throw err('Ce client ne doit rien : remboursez en espèces.');
+      if (total > du) throw err('Le client ne doit que ' + du + ' : déduisez au plus ce montant, le reste en espèces.');
+    }
+    var r = { id: C.uid(), num: C.numero('T'), date: o.date || Date.now(), userId: o.userId, venteId: v.id, venteNum: v.num,
+              clientId: v.clientId || '', depotId: o.depotId || v.depotId, lignes: lignes, total: total, mode: mode, motif: o.motif || '', annule: false };
+    lignes.forEach(function (l) { if (!l.libre) mouv(l.articleId, r.depotId, l.qte, 'retour', r.num, o.userId, r.date); });
+    C.listeRetours().push(r);
+    return r;
+  };
+  C.annulerRetour = function (id, userId) {
+    var r = par(C.listeRetours(), id);
+    if (!r || r.annule) throw err('Retour déjà annulé.');
+    r.lignes.forEach(function (l) { if (!l.libre && C.qte(l.articleId, r.depotId) < l.qte) throw err('Impossible : ' + l.nom + ' est déjà reparti de ce dépôt.'); });
+    r.annule = true; r.annulePar = userId; r.annuleLe = Date.now();
+    r.lignes.forEach(function (l) { if (!l.libre) mouv(l.articleId, r.depotId, -l.qte, 'annulation', r.num, userId); });
   };
 
   C.remplacerVente = function (id, o) { // corriger une facture : annule l'ancienne et crée la nouvelle, ou ne change rien en cas d'erreur
@@ -140,6 +197,7 @@
     var t = C.tiers(tid), s = 0; if (!t) return 0;
     if (t.type === 'client') C.db.ventes.forEach(function (v) { if (!v.annule && v.clientId === tid) s += v.total - v.paye; });
     else C.db.achats.forEach(function (a) { if (!a.annule && a.fournisseurId === tid) s += a.total - a.paye; });
+    if (t.type === 'client') C.listeRetours().forEach(function (r) { if (!r.annule && r.mode === 'avoir' && r.clientId === tid) s -= r.total; });
     (t.dettes || []).forEach(function (d) { s += d.montant; }); // sommes dues ajoutées à la main (dette d'avant, solde de départ…)
     C.db.reglements.forEach(function (r) { if (r.tiersId === tid) s -= r.montant; });
     return s;
@@ -179,24 +237,41 @@
   C.rapport = function (de, a, userId) {
     var db = C.db;
     function dans(x) { return x.date >= de && x.date <= a && (!userId || x.userId === userId); }
-    var R = { nbVentes: 0, ca: 0, cout: 0, encVentes: 0, credit: 0, reglClients: 0, depenses: 0, payeAchats: 0, reglFourn: 0, achats: 0, nbAchats: 0 };
+    var R = { nbVentes: 0, ca: 0, cout: 0, encVentes: 0, credit: 0, reglClients: 0, depenses: 0, payeAchats: 0, reglFourn: 0, achats: 0, nbAchats: 0,
+              remises: 0, retours: 0, retoursCout: 0, rembourses: 0, avoirs: 0, nbRetours: 0 };
     var art = {}, cli = {}, fam = {}, cai = {}, four = {}, modes = {};
     function mode(m, x) { m = m || 'Espèces'; modes[m] = (modes[m] || 0) + x; }
     function caisse(uid) { return cai[uid] || (cai[uid] = { id: uid, nom: (C.user(uid) || {}).nom || '—', nb: 0, ca: 0, enc: 0, dep: 0 }); }
     db.ventes.forEach(function (v) {
       if (v.annule || !dans(v)) return;
       R.nbVentes++; R.ca += v.total; R.encVentes += v.paye; R.credit += v.total - v.paye; if (v.paye > 0) mode(v.mode, v.paye);
+      if (v.remise > 0) R.remises += v.remise;
+      var kr = v.remise > 0 && v.brut > 0 ? v.total / v.brut : 1; // la remise se répartit sur les lignes
       var k = caisse(v.userId); k.nb++; k.ca += v.total; k.enc += v.paye;
       var cn = v.clientId ? (C.tiers(v.clientId) || {}).nom || '—' : 'Clients de passage', cid = v.clientId || '_';
       var c = cli[cid] || (cli[cid] = { id: cid, nom: cn, nb: 0, ca: 0 }); c.nb++; c.ca += v.total;
       v.lignes.forEach(function (l) {
-        var m = l.qte * l.pu, co = l.qte * l.pa; R.cout += co;
-        var ka = l.articleId || 'libre:' + l.nom, x = art[ka] || (art[ka] = { id: ka, nom: l.libre ? l.nom + ' (hors stock)' : l.nom, qte: 0, ca: 0, marge: 0 });
-        x.qte += l.qte; x.ca += m; x.marge += m - co;
-        var ar = C.article(l.articleId), f = ar && C.famille(ar.familleId), fid = f ? f.id : '_';
-        var y = fam[fid] || (fam[fid] = { id: fid, nom: f ? f.nom : 'Sans famille', qte: 0, ca: 0, marge: 0 });
-        y.qte += l.qte; y.ca += m; y.marge += m - co;
+        var m = Math.round(l.qte * l.pu * kr), co = l.qte * l.pa; R.cout += co;
+        statArticle({ articleId: l.articleId, libre: l.libre, nom: l.nom, q: l.qte }, m, co);
       });
+    });
+    function statArticle(l, m, co) { // ajoute (ou retire, si négatif) une ligne aux statistiques par article et par famille
+      var ka = l.articleId || 'libre:' + l.nom, x = art[ka] || (art[ka] = { id: ka, nom: l.libre ? l.nom + ' (hors stock)' : l.nom, qte: 0, ca: 0, marge: 0 });
+      x.qte += l.q; x.ca += m; x.marge += m - co;
+      var ar = C.article(l.articleId), f = ar && C.famille(ar.familleId), fid = f ? f.id : '_';
+      var y = fam[fid] || (fam[fid] = { id: fid, nom: f ? f.nom : 'Sans famille', qte: 0, ca: 0, marge: 0 });
+      y.qte += l.q; y.ca += m; y.marge += m - co;
+    }
+    C.listeRetours().forEach(function (r) {
+      if (r.annule || !dans(r)) return;
+      R.nbRetours++; R.retours += r.total;
+      var kr2 = r.total && r.lignes.length ? r.total / r.lignes.reduce(function (s2, l) { return s2 + l.qte * l.pu; }, 0) : 1;
+      r.lignes.forEach(function (l) {
+        var co = l.qte * (l.pa || 0); R.retoursCout += co;
+        statArticle({ articleId: l.articleId, libre: l.libre, nom: l.nom, q: -l.qte }, -Math.round(l.qte * l.pu * kr2), -co);
+      });
+      if (r.mode === 'espece') { R.rembourses += r.total; var kc = caisse(r.userId); kc.rem = (kc.rem || 0) + r.total; }
+      else R.avoirs += r.total;
     });
     db.reglements.forEach(function (r) {
       if (!dans(r)) return;
@@ -210,9 +285,10 @@
       f.nb++; f.total += x.total;
     });
     R.entrees = R.encVentes + R.reglClients;
-    R.sorties = R.depenses + R.payeAchats + R.reglFourn;
+    R.sorties = R.depenses + R.payeAchats + R.reglFourn + R.rembourses;
     R.soldeCaisse = R.entrees - R.sorties;
-    R.marge = R.ca - R.cout;
+    R.caNet = R.ca - R.retours;
+    R.marge = R.caNet - (R.cout - R.retoursCout);
     R.benefice = R.marge - R.depenses;
     function tri(o, k) { return Object.keys(o).map(function (i) { return o[i]; }).sort(function (x, y) { return y[k] - x[k]; }); }
     R.parMode = Object.keys(modes).map(function (k) { return { nom: k, montant: modes[k] }; }).sort(function (x, y) { return y.montant - x.montant; });
