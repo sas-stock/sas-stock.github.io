@@ -1,4 +1,4 @@
-/* SAS STOCK — page d'accueil pour un visiteur qui découvre le site (2.10.1)
+/* SAS STOCK — page d'accueil pour un visiteur qui découvre le site (2.12.0)
    Remplace l'écran de connexion quand personne n'est connecté : présentation, démonstration,
    captures réelles, abonnements, questions fréquentes, conditions.
    Les clients déjà inscrits retrouvent « Continuer avec Google » en haut de la page. */
@@ -6,13 +6,13 @@
 const IMG = 'img/';
 const FONCTIONS = [
   { t: 'Une caisse faite pour aller vite', s: 'Tapez les premières lettres de l’article, ajoutez-le, encaissez. L’application calcule le total et la monnaie à rendre, et sort la facture tout de suite. Vous pouvez vendre à crédit, encaisser un acompte, faire une remise, reprendre un article et rembourser le client.',
-    i: 'tel-caisse', l: ['Recherche par nom ou par code', 'Monnaie à rendre calculée', 'Vente à crédit et acomptes', 'Remises et retours'] },
+    i: 'tel-caisse', a: 'La caisse de SAS STOCK sur un téléphone : articles du panier, total à payer et bouton Valider la vente', l: ['Recherche par nom ou par code', 'Monnaie à rendre calculée', 'Vente à crédit et acomptes', 'Remises et retours'] },
   { t: 'Le stock se tient tout seul', s: 'Chaque vente sort la marchandise, chaque achat la fait entrer. Vous voyez à tout moment ce qui reste, article par article et dépôt par dépôt, et l’application vous prévient avant la rupture.',
-    i: 'tel-stock', l: ['Alerte de rupture et de stock bas', 'Plusieurs dépôts ou magasins', 'Inventaire avec correction des écarts', 'Import de vos articles depuis Excel'] },
+    i: 'tel-stock', a: 'L’écran Stock de SAS STOCK : quantités restantes par article et alertes de stock bas', l: ['Alerte de rupture et de stock bas', 'Plusieurs dépôts ou magasins', 'Inventaire avec correction des écarts', 'Import de vos articles depuis Excel'] },
   { t: 'Vous savez qui vous doit quoi', s: 'Chaque client a sa fiche : ce qu’il a acheté, ce qu’il a payé, ce qu’il reste à payer. Vous enregistrez un règlement en deux touches et l’application vous signale les crédits qui traînent depuis plus de 30 jours.',
-    i: 'tel-clients', l: ['Crédits clients et dettes fournisseurs', 'Reçu de règlement à envoyer', 'Relance par WhatsApp depuis la fiche', 'Alerte sur les retards'] },
+    i: 'tel-clients', a: 'La fiche d’un client dans SAS STOCK : crédit restant, historique des achats et rappel WhatsApp', l: ['Crédits clients et dettes fournisseurs', 'Reçu de règlement à envoyer', 'Relance par WhatsApp depuis la fiche', 'Alerte sur les retards'] },
   { t: 'Des factures propres, à votre nom', s: 'Facture au format page avec votre logo, votre adresse et votre RCCM, ou petit ticket pour une imprimante de caisse. À imprimer, à envoyer en PDF ou à copier dans WhatsApp.',
-    i: 'tel-facture', l: ['Votre logo et votre RCCM', 'PDF prêt à envoyer', 'Message WhatsApp en un geste', 'Mention « livré et non payé »'] }
+    i: 'tel-facture', a: 'Une facture SAS STOCK au nom de la boutique, prête à imprimer ou à envoyer en PDF', l: ['Votre logo et votre RCCM', 'PDF prêt à envoyer', 'Message WhatsApp en un geste', 'Mention « livré et non payé »'] }
 ];
 const ECRANS = [
   { i: 'pc-accueil', t: 'L’accueil : vos ventes du jour, votre bénéfice, les crédits à encaisser et le stock à surveiller.' },
@@ -50,7 +50,7 @@ const CSS = `
 .vit .v-bt.v-p{background:var(--vc);color:#1A1203}
 .vit .v-bt.v-g{background:#fff;color:var(--vv)}
 .vit .v-bt.v-l{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.35)}
-.vit .v-hero .v-sous{font-size:.86rem;color:#9FBBAE;margin:14px 0 0}
+.vit .v-hero .v-sous{font-size:.86rem;color:#9FBBAE;margin:14px 0 0;max-width:40em}
 .vit .v-hero .v-im{display:flex;justify-content:center;margin-top:34px}
 .vit .v-hero .v-im img{width:260px;height:auto;max-width:72vw;border-radius:26px 26px 0 0;box-shadow:0 -2px 60px rgba(0,0,0,.45);display:block}
 .vit .v-ban{background:#091B14;color:#9FBBAE;font-size:.88rem;padding:13px 0;text-align:center}
@@ -60,7 +60,7 @@ const CSS = `
 .vit .v-lede{color:#4A6459;font-size:1.03rem;margin:0 0 26px;max-width:36em}
 .vit .v-vid{background:#0C241B;color:#fff}
 .vit .v-vid video{width:100%;height:auto;aspect-ratio:16/10;border-radius:16px;display:block;background:#000}
-.vit .v-vid .lede{color:#C5D8CE}
+.vit .v-vid .v-lede{color:#C5D8CE}
 .vit .v-fn{display:grid;gap:34px}
 .vit .v-fn article{display:grid;gap:20px;align-items:center}
 @media(min-width:800px){.vit .v-fn article{grid-template-columns:1fr 300px}.vit .v-fn article:nth-child(even) .ph{order:-1}}
@@ -91,10 +91,36 @@ const CSS = `
 .vit .v-faq summary::after{content:"+";margin-left:auto;font-weight:700;color:var(--vt);font-size:1.3rem;line-height:1}
 .vit .v-faq details[open] summary::after{content:"–"}
 .vit .v-faq p{color:#4A6459;margin:10px 0 0;line-height:1.55;max-width:46em}
-.vit .v-fin{background:var(--vv);color:#fff;text-align:center}
+.vit .v-fin{background:var(--vv);color:#fff}
 .vit .v-fin h2{color:#fff}
-.vit .v-fin .lede{color:#C5D8CE;margin-left:auto;margin-right:auto}
-.vit .v-fin .bs{justify-content:center}
+.vit .v-fin .v-lede{color:#C5D8CE}
+.vit .v-fin-g{display:grid;gap:30px;align-items:start}
+@media(min-width:860px){.vit .v-fin-g{grid-template-columns:1fr 420px;gap:48px}.vit .v-fin-t{padding-top:20px}}
+.vit .v-dem{background:#fff;color:#102A20;border-radius:18px;padding:22px;display:grid;gap:14px}
+.vit .v-dem h3{margin:0;font-size:1.2rem;letter-spacing:-.01em}
+.vit .v-dem .v-ch{display:grid;gap:5px}
+.vit .v-dem label{font-weight:700;font-size:.92rem}
+.vit .v-dem input,.vit .v-dem select{width:100%;font:inherit;font-size:1rem;padding:12px 13px;border:1.5px solid #C9D6CF;border-radius:11px;background:#fff;color:#102A20}
+.vit .v-dem input:focus,.vit .v-dem select:focus{outline:none;border-color:var(--vt);box-shadow:0 0 0 3px rgba(28,107,75,.18)}
+.vit .v-dem [aria-invalid=true]{border-color:#B3261E;background:#FFF6F5}
+.vit .v-dem .v-er{color:#B3261E;font-size:.86rem;font-weight:600;min-height:0}
+.vit .v-dem .v-er:empty{display:none}
+.vit .v-dem .v-2{display:grid;gap:14px}
+@media(min-width:480px){.vit .v-dem .v-2{grid-template-columns:1fr 1fr}}
+.vit .v-dem .v-pot{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.vit .v-dem button{width:100%}
+.vit .v-dem .v-mt{font-size:.82rem;color:#4A6459;margin:0}
+.vit .v-dem .v-okm{background:#E3F2EA;border-radius:11px;padding:12px 14px;font-size:.93rem}
+.vit .v-dem .v-okm:empty{display:none}
+.vit .v-coll{display:none}
+@media(max-width:700px){
+  .vit .v-coll{display:block;position:fixed;left:0;right:0;bottom:0;z-index:6;padding:10px 14px max(10px,env(safe-area-inset-bottom));background:rgba(12,36,27,.97);transform:translateY(110%);transition:transform .25s ease}
+  .vit .v-coll.on{transform:none}
+  .vit .v-coll .v-bt{width:100%}
+  .vit footer{padding-bottom:96px}
+}
+@media(prefers-reduced-motion:reduce){.vit .v-coll{transition:none}}
+.vit .v-hero .v-sous a{color:#fff;font-weight:700}
 .vit footer{background:#091B14;color:#9FBBAE;padding:30px 0;font-size:.9rem}
 .vit footer .v-w{display:grid;gap:8px}
 .vit footer a{color:#fff;text-decoration:none;font-weight:600}
@@ -112,8 +138,8 @@ const waContact = () => {
   return n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(m) : 'tel:' + REVENDEUR.tel2;
 };
 function pageVitrine() {
-  const connexion = window.FB ? '<button class="v-bt v-g" data-a="google">Continuer avec Google</button>'
-    : '<span class="v-sous">Connexion Internet nécessaire pour ouvrir votre boutique.</span>';
+  const essai = window.FB ? '<button class="v-bt v-p" data-a="google">Essayer gratuitement 7 jours</button>'
+    : '<a class="v-bt v-p" href="demo.html">Voir la démonstration</a>';
   return '<div class="vit">' +
     '<div class="v-nav"><div class="v-w">' + LOGO + '<b>SAS STOCK</b><span class="v-sp"></span>' +
       '<a class="v-h" href="#fonctions">Fonctions</a><a class="v-h" href="#abonnements">Abonnements</a><a class="v-h" href="#questions">Questions</a>' +
@@ -122,9 +148,10 @@ function pageVitrine() {
     '<div class="v-hero"><div class="v-w">' +
       '<h1>Le stock et la caisse de votre boutique, dans votre téléphone</h1>' +
       '<p class="v-s">Vendez, suivez votre stock, sachez qui vous doit de l’argent et combien vous gagnez vraiment. Sur téléphone et sur ordinateur, même quand il n’y a pas de réseau.</p>' +
-      '<div class="v-bs">' + (window.FB ? '<button class="v-bt v-p" data-a="google">Essayer gratuitement 7 jours</button>' : '') + '<a class="v-bt v-l" href="demo.html">Voir la démonstration</a>' + connexion + '</div>' +
-      '<p class="v-sous">7 jours avec votre vrai stock et vos vrais clients, sans rien payer et sans carte bancaire. La démonstration, elle, se touche tout de suite avec une boutique d’exemple. Déjà client ? Le même bouton vous reconnecte à votre boutique.</p>' +
-      '<div class="v-im"><img src="' + IMG + 'tel-accueil.webp" alt="L’accueil de SAS STOCK sur un téléphone" width="560" height="1204" loading="eager"></div>' +
+      '<div class="v-bs" id="vHaut">' + essai + (window.FB ? '<a class="v-bt v-l" href="demo.html">Voir la démonstration</a>' : '') + '</div>' +
+      '<p class="v-sous">Avec le compte Google de votre boutique. Rien à payer, aucune carte bancaire, vos données sont gardées à la fin de l’essai.' +
+        (window.FB ? ' Déjà client ? <a href="#" data-a="google">Continuer avec Google</a>' : ' Connexion Internet nécessaire pour ouvrir votre boutique.') + '</p>' +
+      '<div class="v-im"><img src="' + IMG + 'tel-accueil.webp" alt="L’accueil de SAS STOCK sur un téléphone : ventes du jour, bénéfice et crédits clients" width="560" height="1204" loading="eager" fetchpriority="high"></div>' +
     '</div></div>' +
     '<div class="v-ban"><div class="v-w">Fonctionne <b>sans internet</b> · Vos données <b>sauvegardées en ligne</b> · <b>Téléphone et ordinateur</b> · Fait en <b>Côte d’Ivoire</b></div></div>' +
 
@@ -138,18 +165,18 @@ function pageVitrine() {
       '<p class="v-lede">Rien d’inutile : les quatre choses qui font perdre de l’argent dans une boutique, réglées une par une.</p>' +
       '<div class="v-fn">' + FONCTIONS.map(f =>
         '<article><div><h3>' + esc(f.t) + '</h3><p>' + esc(f.s) + '</p><ul>' + f.l.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' +
-        '<div class="v-ph"><img src="' + IMG + f.i + '.webp" alt="' + esc(f.t) + '" width="560" height="1204" loading="lazy"></div></article>').join('') +
+        '<div class="v-ph"><img src="' + IMG + f.i + '.webp" alt="' + esc(f.a) + '" width="560" height="1204" loading="lazy" decoding="async"></div></article>').join('') +
       '</div></div></section>' +
 
     '<section style="background:#F3F7F5"><div class="v-w"><h2>Et sur l’ordinateur</h2>' +
       '<p class="v-lede">Le même compte, les mêmes données, en plus grand. Voici de vraies captures du logiciel.</p>' +
-      '<div class="v-ec">' + ECRANS.map(e => '<figure><img src="' + IMG + e.i + '.webp" alt="' + esc(e.t) + '" width="1100" height="690" loading="lazy"><figcaption>' + esc(e.t) + '</figcaption></figure>').join('') + '</div>' +
+      '<div class="v-ec">' + ECRANS.map(e => '<figure><img src="' + IMG + e.i + '.webp" alt="' + esc('Capture de SAS STOCK sur ordinateur. ' + e.t) + '" width="1100" height="690" loading="lazy" decoding="async"><figcaption>' + esc(e.t) + '</figcaption></figure>').join('') + '</div>' +
     '</div></section>' +
 
     '<section><div class="v-w"><h2>Pour commencer</h2><div class="v-et">' +
-      '<div><b>Essayez</b><span>Ouvrez la démonstration et faites une vente pour voir comment ça marche.</span></div>' +
-      '<div><b>Demandez votre accès</b><span>Écrivez à ' + esc(REVENDEUR.nom) + ' sur WhatsApp et choisissez votre formule.</span></div>' +
-      '<div><b>Installez votre boutique</b><span>Connectez-vous avec Google, entrez vos articles (ou importez-les depuis Excel) et vendez.</span></div>' +
+      '<div><b>Lancez l’essai gratuit</b><span>Connectez-vous avec le compte Google de votre boutique : SAS STOCK s’ouvre tout de suite, pour 7 jours.</span></div>' +
+      '<div><b>Entrez vos articles et vendez</b><span>Tapez-les ou importez-les depuis Excel, puis faites vos vraies ventes avec vos vrais clients.</span></div>' +
+      '<div><b>Choisissez votre formule</b><span>Payez par Mobile Money auprès de ' + esc(REVENDEUR.nom) + '. Tout ce que vous avez saisi pendant l’essai est gardé.</span></div>' +
     '</div></div></section>' +
 
     '<section class="v-ab" id="abonnements"><div class="v-w"><h2>Les abonnements</h2>' +
@@ -160,16 +187,89 @@ function pageVitrine() {
       QUESTIONS.map(q => '<details><summary>' + esc(q[0]) + '</summary><p>' + esc(q[1]) + '</p></details>').join('') +
     '</div></section>' +
 
-    '<section class="v-fin"><div class="v-w"><h2>Prêt à essayer ?</h2>' +
-      '<p class="v-lede">La démonstration s’ouvre tout de suite, sans compte. Si elle vous convient, ' + esc(REVENDEUR.nom) + ' active votre boutique le jour même.</p>' +
-      '<div class="v-bs">' + (window.FB ? '<button class="v-bt v-p" data-a="google">Essayer gratuitement 7 jours</button>' : '<a class="v-bt v-p" href="demo.html">Voir la démonstration</a>') + '<a class="v-bt v-l" href="' + waContact() + '" target="_blank" rel="noopener">Écrire sur WhatsApp</a></div>' +
+    '<section class="v-fin" id="demarrer"><div class="v-w v-fin-g"><div class="v-fin-t"><h2>Prêt à essayer ?</h2>' +
+      '<p class="v-lede">7 jours gratuits avec votre vrai stock, sans carte bancaire. Vous préférez qu’on vous montre ? Laissez vos coordonnées, ' + esc(REVENDEUR.nom) + ' vous rappelle.</p>' +
+      '<div class="v-bs">' + essai + '<a class="v-bt v-l" href="' + waContact() + '" target="_blank" rel="noopener">Écrire sur WhatsApp</a></div></div>' +
+      formulaireDemande() +
     '</div></section>' +
+    '<div class="v-coll" aria-hidden="true">' + essai.replace('class="v-bt v-p"', 'class="v-bt v-p" tabindex="-1"') + '</div>' +
 
     '<footer><div class="v-w"><span>SAS STOCK — gestion de stock et de caisse, par ' + esc(REVENDEUR.nom) + '</span>' +
       '<span><a href="tel:' + REVENDEUR.tel2 + '">' + esc(REVENDEUR.tel) + '</a> · <a href="mailto:' + REVENDEUR.mail + '">' + esc(REVENDEUR.mail) + '</a></span>' +
-      '<div class="v-pt"><a href="demo.html">Démonstration</a><a href="telecharger.html">Télécharger l’application</a><a href="cgu.html">Conditions générales</a><a href="confidentialite.html">Politique de confidentialité</a></div>' +
+      '<div class="v-pt"><a href="demo.html">Démonstration</a><a href="telecharger.html">Télécharger l’application</a><a href="cgu.html">Conditions générales</a><a href="confidentialite.html">Politique de confidentialité</a><a href="#" data-cookies>Gérer les cookies</a></div>' +
       '<span class="v-cop">Version ' + VERSION + ' · Man, Côte d’Ivoire</span>' +
     '</div></footer></div>';
+}
+/* ---- demande de démonstration : se termine dans WhatsApp, donc aucun envoi automatique possible ---- */
+const ACTIVITES = ['Quincaillerie ou matériaux', 'Alimentation ou supermarché', 'Pièces moto ou auto', 'Dépôt de boissons', 'Cosmétiques ou habillement', 'Téléphones ou électronique', 'Autre commerce'];
+function formulaireDemande() {
+  const ch = (id, lab, attrs) => '<div class="v-ch"><label for="' + id + '">' + lab + '</label><input id="' + id + '" name="' + id + '" ' + attrs + ' aria-describedby="' + id + 'E"><span class="v-er" id="' + id + 'E" aria-live="polite"></span></div>';
+  return '<form class="v-dem" id="vDem" novalidate data-t="' + Date.now() + '"><h3>Demander une démonstration</h3>' +
+    ch('dNom', 'Votre nom', 'type="text" autocomplete="name" maxlength="60" required') +
+    ch('dBout', 'Nom de la boutique', 'type="text" autocomplete="organization" maxlength="80" required') +
+    '<div class="v-2">' + ch('dVille', 'Ville ou quartier', 'type="text" autocomplete="address-level2" maxlength="60" required') +
+      ch('dTel', 'Téléphone', 'type="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="07 00 00 00 00" required') + '</div>' +
+    '<div class="v-ch"><label for="dAct">Votre activité</label><select id="dAct" name="dAct" required aria-describedby="dActE"><option value="">Choisissez</option>' +
+      ACTIVITES.map(a => '<option>' + esc(a) + '</option>').join('') + '</select><span class="v-er" id="dActE" aria-live="polite"></span></div>' +
+    '<div class="v-pot" aria-hidden="true"><label for="dSite">Ne pas remplir</label><input id="dSite" name="dSite" type="text" tabindex="-1" autocomplete="off"></div>' +
+    '<button type="submit" class="v-bt v-p">Envoyer ma demande sur WhatsApp</button>' +
+    '<p class="v-mt">Votre demande s’ouvre dans WhatsApp : vous la relisez et l’envoyez vous-même à ' + esc(REVENDEUR.nom) + '. Rien n’est enregistré sur ce site.</p>' +
+    '<div class="v-okm" role="status"></div></form>';
+}
+/* numéro ivoirien à 10 chiffres (01, 05, 07 mobiles ; 21, 25, 27 fixes), avec ou sans +225 */
+function telIvoirien(v) {
+  let d = String(v || '').replace(/[\s.\-()]/g, '');
+  if (/^\+?225/.test(d)) d = d.replace(/^\+?225/, '');
+  return /^(01|05|07|21|25|27)\d{8}$/.test(d) ? d.replace(/(\d\d)(?=\d)/g, '$1 ') : null;
+}
+function verifierDemande(f) {
+  const v = id => f.querySelector('#' + id).value.trim(), err = {};
+  const n = v('dNom'), b = v('dBout'), vi = v('dVille'), a = v('dAct'), t = telIvoirien(v('dTel'));
+  if (n.length < 2) err.dNom = 'Entrez votre nom.';
+  else if (!/\p{L}/u.test(n)) err.dNom = 'Le nom doit contenir des lettres.';
+  if (b.length < 2) err.dBout = 'Entrez le nom de votre boutique.';
+  if (vi.length < 2) err.dVille = 'Entrez votre ville ou votre quartier.';
+  if (!v('dTel')) err.dTel = 'Entrez votre numéro de téléphone.';
+  else if (!t) err.dTel = 'Entrez un numéro à 10 chiffres, par exemple 07 48 67 13 34.';
+  if (!a) err.dAct = 'Choisissez votre activité.';
+  ['dNom', 'dBout', 'dVille', 'dTel', 'dAct'].forEach(id => {
+    const el = f.querySelector('#' + id); el.setAttribute('aria-invalid', err[id] ? 'true' : 'false');
+    f.querySelector('#' + id + 'E').textContent = err[id] || '';
+  });
+  return { ok: !Object.keys(err).length, premier: Object.keys(err)[0], n, b, vi, a, t };
+}
+document.addEventListener('submit', e => {
+  const f = e.target; if (!f || f.id !== 'vDem') return;
+  e.preventDefault();
+  const r = verifierDemande(f), msg = f.querySelector('.v-okm');
+  if (!r.ok) { f.querySelector('#' + r.premier).focus(); msg.textContent = ''; return; }
+  /* anti-robot : champ piège rempli, ou formulaire envoyé moins de 3 secondes après l'affichage */
+  const robot = f.querySelector('#dSite').value || Date.now() - (+f.dataset.t || 0) < 3000;
+  let dernier = 0; try { dernier = +localStorage.getItem('sasDemande') || 0; } catch (x) {}
+  if (robot) { msg.textContent = 'Merci, votre demande est prête.'; return; }
+  if (Date.now() - dernier < 60000) { msg.textContent = 'Votre demande vient déjà de s’ouvrir dans WhatsApp. Appuyez sur Envoyer dans WhatsApp, ou appelez le ' + REVENDEUR.tel + '.'; return; }
+  try { localStorage.setItem('sasDemande', String(Date.now())); } catch (x) {}
+  const texte = 'Bonjour ' + REVENDEUR.nom + ', je voudrais une démonstration de SAS STOCK.\n' +
+    'Nom : ' + r.n + '\nBoutique : ' + r.b + ' (' + r.a + ')\nVille : ' + r.vi + '\nTéléphone : ' + r.t;
+  const n = typeof numeroWA === 'function' ? numeroWA(REVENDEUR.tel) : '';
+  const url = n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(texte) : 'tel:' + REVENDEUR.tel2;
+  const w = window.open(url, '_blank', 'noopener');
+  if (!w) location.href = url;
+  msg.textContent = 'WhatsApp s’ouvre avec votre demande : appuyez sur Envoyer. Si rien ne s’ouvre, appelez le ' + REVENDEUR.tel + '.';
+});
+document.addEventListener('input', e => {
+  const el = e.target; if (!el || !el.closest || !el.closest('#vDem') || el.getAttribute('aria-invalid') !== 'true') return;
+  verifierDemande(el.closest('#vDem'));
+});
+/* barre « Essayer gratuitement » en bas de l'écran du téléphone, une fois les boutons du haut sortis de l'écran */
+function barreMobile() {
+  const haut = document.getElementById('vHaut'), barre = document.querySelector('.vit .v-coll'), fin = document.getElementById('demarrer');
+  if (!haut || !barre || !('IntersectionObserver' in window)) return;
+  let hors = false, finVue = false;
+  const maj = () => { const on = hors && !finVue; barre.classList.toggle('on', on); barre.setAttribute('aria-hidden', on ? 'false' : 'true');
+    const b = barre.querySelector('.v-bt'); if (b) b.tabIndex = on ? 0 : -1; };
+  new IntersectionObserver(es => { hors = !es[0].isIntersecting; maj(); }).observe(haut);
+  if (fin) new IntersectionObserver(es => { finVue = es[0].isIntersecting; maj(); }).observe(fin);
 }
 /* si la vidéo n'est pas encore en ligne, on retire simplement la section */
 function verifierVideo() {
@@ -180,7 +280,9 @@ const vueActivationVitrine = vueActivation;
 vueActivation = function () {
   if (etat.raison !== 'compte') return vueActivationVitrine();
   styleVitrine();
-  setTimeout(verifierVideo, 0);
+  /* le visiteur voit la page tout de suite : pas d'écran de lancement */
+  const l = document.getElementById('lance'); if (l) { l.style.transition = 'opacity .15s'; l.style.opacity = 0; setTimeout(() => l.remove(), 160); }
+  setTimeout(() => { verifierVideo(); barreMobile(); }, 0);
   return pageVitrine();
 };
 }
