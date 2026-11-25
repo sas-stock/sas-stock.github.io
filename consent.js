@@ -4,7 +4,7 @@
    n'a pas besoin d'accord. Laisser CF_JETON vide désactive toute mesure. */
 (function () {
   'use strict';
-  var CF_JETON = '';
+  var CF_JETON = '5273129ed97d42c4a36fd1e42d0ca612';
   var CLE = 'sasConsentement';
 
   function lire() { try { return JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { return null; } }
